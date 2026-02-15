@@ -53,14 +53,14 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/config/httpjail-rules-generator.ts` (generates httpjail JS rules from .egressor.yml)
 - Create: `src/test/config.test.ts`
 
-- [ ] Define TypeScript interfaces for .egressor.yml schema (egress rules, secrets declarations, presets)
-- [ ] Implement YAML parser that reads and validates .egressor.yml
-- [ ] Implement preset resolution (e.g., node-fullstack expands to common Node.js hosts)
-- [ ] Implement secretless.yml generator: translate .egressor.yml secrets section into Secretless Broker service config (HTTP connectors with bearer_token, database connectors with listen ports)
-- [ ] Implement httpjail rule generator: translate .egressor.yml egress rules into httpjail JavaScript rule expressions (host matching, method filtering, path filtering)
-- [ ] Implement file watcher that detects config changes and regenerates derived configs
-- [ ] Write tests: valid config parsing, invalid config errors, preset expansion, secretless.yml generation, httpjail rule generation, file change detection
-- [ ] Run project test suite - must pass before task 3
+- [x] Define TypeScript interfaces for .egressor.yml schema (egress rules, secrets declarations, presets)
+- [x] Implement YAML parser that reads and validates .egressor.yml
+- [x] Implement preset resolution (e.g., node-fullstack expands to common Node.js hosts)
+- [x] Implement secretless.yml generator: translate .egressor.yml secrets section into Secretless Broker service config (HTTP connectors with bearer_token, database connectors with listen ports)
+- [x] Implement httpjail rule generator: translate .egressor.yml egress rules into httpjail JavaScript rule expressions (host matching, method filtering, path filtering)
+- [x] Implement file watcher that detects config changes and regenerates derived configs
+- [x] Write tests: valid config parsing, invalid config errors, preset expansion, secretless.yml generation, httpjail rule generation, file change detection
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: httpjail Integration (Traffic Control)
 

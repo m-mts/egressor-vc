@@ -73,6 +73,15 @@ const languages = {
     }),
 };
 
+const RelativePattern = class {
+    base: string;
+    pattern: string;
+    constructor(base: string, pattern: string) {
+        this.base = base;
+        this.pattern = pattern;
+    }
+};
+
 export function resetMocks(): void {
     sinon.reset();
 }
@@ -86,5 +95,6 @@ module.exports = {
     DiagnosticSeverity,
     StatusBarAlignment,
     languages,
+    RelativePattern,
     resetMocks,
 };
