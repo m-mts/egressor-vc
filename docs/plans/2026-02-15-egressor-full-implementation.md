@@ -35,13 +35,13 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `.vscodeignore`
 - Create: `.eslintrc.json`
 
-- [ ] Initialize VS Code extension project with TypeScript
-- [ ] Configure package.json with extension metadata, activation events, and contributes (views, commands, configuration)
-- [ ] Set up TypeScript compilation
-- [ ] Set up ESLint and testing framework (mocha + VS Code test runner)
-- [ ] Create minimal extension.ts that activates and logs
-- [ ] Write smoke test that extension activates without error
-- [ ] Run project test suite - must pass before task 2
+- [x] Initialize VS Code extension project with TypeScript
+- [x] Configure package.json with extension metadata, activation events, and contributes (views, commands, configuration)
+- [x] Set up TypeScript compilation
+- [x] Set up ESLint and testing framework (mocha + VS Code test runner)
+- [x] Create minimal extension.ts that activates and logs
+- [x] Write smoke test that extension activates without error
+- [x] Run project test suite - must pass before task 2
 
 ### Task 2: Configuration Parser (.egressor.yml)
 

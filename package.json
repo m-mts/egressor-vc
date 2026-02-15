@@ -1,0 +1,123 @@
+{
+  "name": "egressor",
+  "displayName": "Egressor",
+  "description": "Traffic visibility, egress rule enforcement, secret injection, and audit trails for container-based development",
+  "version": "0.0.1",
+  "publisher": "egressor",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.egressor.yml",
+    "onView:egressor.trafficPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "egressor",
+          "title": "Egressor",
+          "icon": "$(shield)"
+        }
+      ]
+    },
+    "views": {
+      "egressor": [
+        {
+          "type": "webview",
+          "id": "egressor.trafficPanel",
+          "name": "Traffic Panel"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "egressor.start",
+        "title": "Egressor: Start"
+      },
+      {
+        "command": "egressor.stop",
+        "title": "Egressor: Stop"
+      },
+      {
+        "command": "egressor.showSessionSummary",
+        "title": "Egressor: Show Session Summary"
+      },
+      {
+        "command": "egressor.exportSessionLog",
+        "title": "Egressor: Export Session Log"
+      },
+      {
+        "command": "egressor.storeSecret",
+        "title": "Egressor: Store Secret"
+      },
+      {
+        "command": "egressor.deleteSecret",
+        "title": "Egressor: Delete Secret"
+      },
+      {
+        "command": "egressor.listSecrets",
+        "title": "Egressor: List Secrets"
+      }
+    ],
+    "configuration": {
+      "title": "Egressor",
+      "properties": {
+        "egressor.httpjailPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to httpjail binary (auto-detected if empty)"
+        },
+        "egressor.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start Egressor when a .egressor.yml is detected"
+        },
+        "egressor.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Log verbosity level"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "tsc -p ./ && mocha"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/sinon": "^17.0.3",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "mocha": "^10.2.0",
+    "sinon": "^17.0.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

@@ -1,0 +1,5 @@
+require:
+  - ./out/test/register.js
+spec: 'out/test/**/*.test.js'
+ui: tdd
+timeout: 10000
