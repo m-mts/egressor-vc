@@ -25,10 +25,10 @@ function defaultFsOps(): FileSystemOps {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs').promises;
     return {
-        mkdir: (dirPath: string, options: { recursive: boolean }) => fs.mkdir(dirPath, options),
-        appendFile: (filePath: string, data: string) => fs.appendFile(filePath, data, 'utf-8'),
+        mkdir: (dirPath: string, options: { recursive: boolean }) => fs.mkdir(dirPath, { ...options, mode: 0o700 }),
+        appendFile: (filePath: string, data: string) => fs.appendFile(filePath, data, { encoding: 'utf-8', mode: 0o600 }),
         readFile: (filePath: string) => fs.readFile(filePath, 'utf-8'),
-        writeFile: (filePath: string, data: string) => fs.writeFile(filePath, data, 'utf-8'),
+        writeFile: (filePath: string, data: string) => fs.writeFile(filePath, data, { encoding: 'utf-8', mode: 0o600 }),
     };
 }
 

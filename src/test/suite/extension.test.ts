@@ -60,8 +60,8 @@ suite('Extension Test Suite', () => {
         ensureVscodeMocks(sandbox);
     });
 
-    teardown(() => {
-        deactivate();
+    teardown(async () => {
+        await deactivate();
         sandbox.restore();
     });
 
@@ -104,8 +104,8 @@ suite('Extension Test Suite', () => {
         assert.ok(disposables.length >= 5, `Expected at least 5 disposables, got ${disposables.length}`);
     });
 
-    test('deactivate does not throw', () => {
-        assert.doesNotThrow(() => deactivate());
+    test('deactivate does not throw', async () => {
+        await assert.doesNotReject(() => deactivate());
     });
 
     test('activate logs activation message to output channel', () => {

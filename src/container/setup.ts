@@ -359,6 +359,8 @@ export class EgressorSetup implements vscode.Disposable {
         this.credentialProvider.dispose();
         this.statusBar.dispose();
         this.diagnostics.dispose();
+        // Stop session logger to prevent further writes
+        this.sessionLogger.stop().catch(() => {});
 
         for (const d of this.disposables) {
             d.dispose();

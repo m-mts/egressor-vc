@@ -72,8 +72,12 @@ export function activate(context: vscode.ExtensionContext): void {
             vscode.window.showWarningMessage('Egressor: Extension not initialized');
             return;
         }
-        const name = await vscode.window.showInputBox({ prompt: 'Secret name' });
+        const name = await vscode.window.showInputBox({ prompt: 'Secret name (alphanumeric, hyphens, underscores)' });
         if (!name) { return; }
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            vscode.window.showErrorMessage('Secret name must contain only alphanumeric characters, hyphens, and underscores');
+            return;
+        }
         const value = await vscode.window.showInputBox({ prompt: `Value for ${name}`, password: true });
         if (value === undefined || value === '') { return; }
         await provider.storeSecret(
@@ -126,8 +130,9 @@ export function getEgressorSetup(): EgressorSetup | undefined {
     return egressorSetup;
 }
 
-export function deactivate(): void {
+export async function deactivate(): Promise<void> {
     if (egressorSetup) {
+        await egressorSetup.stop();
         egressorSetup.dispose();
         egressorSetup = undefined;
     }

@@ -525,7 +525,7 @@ suite('Extension Lifecycle (Integration)', () => {
         assert.ok(getEgressorSetup() !== undefined);
     });
 
-    test('deactivate disposes setup', () => {
+    test('deactivate disposes setup', async () => {
         ensureVscodeMocks(sandbox);
         const fakeOutputChannel = {
             appendLine: sandbox.stub(),
@@ -558,14 +558,14 @@ suite('Extension Lifecycle (Integration)', () => {
         activate(context);
         assert.ok(getEgressorSetup() !== undefined);
 
-        deactivate();
+        await deactivate();
         assert.strictEqual(getEgressorSetup(), undefined);
     });
 
-    test('deactivate does not throw when called without activate', () => {
+    test('deactivate does not throw when called without activate', async () => {
         // Reset state from prior tests
-        deactivate();
-        assert.doesNotThrow(() => deactivate());
+        await deactivate();
+        await assert.doesNotReject(() => deactivate());
     });
 });
 

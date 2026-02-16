@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import { TrafficEvent } from '../jail/types';
 import { SecretInjectionEvent } from '../secrets/types';
 
@@ -122,12 +123,7 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
 
     /** Generate a nonce for CSP */
     private getNonce(): string {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let nonce = '';
-        for (let i = 0; i < 32; i++) {
-            nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return nonce;
+        return crypto.randomBytes(16).toString('hex');
     }
 
     /** Build the webview HTML content */
