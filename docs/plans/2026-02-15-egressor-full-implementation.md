@@ -89,14 +89,14 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/secrets/types.ts` (secret config types)
 - Create: `src/test/secrets.test.ts`
 
-- [ ] Implement Secretless Broker container/process manager: start broker with generated secretless.yml
-- [ ] Implement local credential provider: store secret values in VS Code SecretStorage API, serve them to Secretless Broker via its credential provider interface (file-based or environment variable provider)
-- [ ] Implement secret CRUD operations through VS Code commands (store, retrieve, delete, list)
-- [ ] Implement first-run detection: when .egressor.yml declares secrets the local store doesn't have, prompt user via VS Code input UI
-- [ ] Configure Secretless Broker services: HTTP connectors for API secret injection (bearer_token, custom headers), database connectors for DB credential injection (PostgreSQL, MySQL)
-- [ ] Wire Secretless Broker events into traffic event stream (secret injection events)
-- [ ] Write tests: broker lifecycle, credential storage/retrieval, secretless.yml service config, first-run prompting
-- [ ] Run project test suite - must pass before task 5
+- [x] Implement Secretless Broker container/process manager: start broker with generated secretless.yml
+- [x] Implement local credential provider: store secret values in VS Code SecretStorage API, serve them to Secretless Broker via its credential provider interface (file-based or environment variable provider)
+- [x] Implement secret CRUD operations through VS Code commands (store, retrieve, delete, list)
+- [x] Implement first-run detection: when .egressor.yml declares secrets the local store doesn't have, prompt user via VS Code input UI
+- [x] Configure Secretless Broker services: HTTP connectors for API secret injection (bearer_token, custom headers), database connectors for DB credential injection (PostgreSQL, MySQL)
+- [x] Wire Secretless Broker events into traffic event stream (secret injection events)
+- [x] Write tests: broker lifecycle, credential storage/retrieval, secretless.yml service config, first-run prompting
+- [x] Run project test suite - must pass before task 5
 
 ### Task 5: Traffic Panel (VS Code Webview)
 
