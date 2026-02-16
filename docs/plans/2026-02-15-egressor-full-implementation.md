@@ -71,14 +71,14 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/jail/types.ts` (traffic event types)
 - Create: `src/test/jail.test.ts`
 
-- [ ] Implement httpjail binary detection and installation helper (download from GitHub releases or prompt user)
-- [ ] Implement httpjail process manager: start httpjail with --docker-run for container sessions, pass generated JS rules file, configure strong mode with nftables for full traffic control
-- [ ] Parse httpjail stdout/stderr to extract structured traffic events (method, host, path, allowed/blocked, timing)
-- [ ] Implement httpjail lifecycle management (start, stop, restart, health check)
-- [ ] Handle httpjail's default behavior: all DNS (udp:53) permitted, all non-HTTP traffic blocked
-- [ ] Wire config watcher to reload httpjail rules on .egressor.yml changes
-- [ ] Write tests: process lifecycle, event parsing, rule file generation, config reload
-- [ ] Run project test suite - must pass before task 4
+- [x] Implement httpjail binary detection and installation helper (download from GitHub releases or prompt user)
+- [x] Implement httpjail process manager: start httpjail with --docker-run for container sessions, pass generated JS rules file, configure strong mode with nftables for full traffic control
+- [x] Parse httpjail stdout/stderr to extract structured traffic events (method, host, path, allowed/blocked, timing)
+- [x] Implement httpjail lifecycle management (start, stop, restart, health check)
+- [x] Handle httpjail's default behavior: all DNS (udp:53) permitted, all non-HTTP traffic blocked
+- [x] Wire config watcher to reload httpjail rules on .egressor.yml changes
+- [x] Write tests: process lifecycle, event parsing, rule file generation, config reload
+- [x] Run project test suite - must pass before task 4
 
 ### Task 4: Secretless Broker Integration (Secret Injection)
 
