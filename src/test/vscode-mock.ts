@@ -15,6 +15,7 @@ const window = {
     showErrorMessage: sinon.stub().resolves(undefined),
     showInputBox: sinon.stub().resolves(undefined),
     showQuickPick: sinon.stub().resolves(undefined),
+    registerWebviewViewProvider: sinon.stub().returns(disposable),
 };
 
 const commands = {
@@ -42,8 +43,12 @@ const workspace = {
 };
 
 const Uri = {
-    file: (path: string) => ({ scheme: 'file', fsPath: path, path }),
-    parse: (uri: string) => ({ scheme: 'file', fsPath: uri, path: uri }),
+    file: (p: string) => ({ scheme: 'file', fsPath: p, path: p, toString: () => p }),
+    parse: (uri: string) => ({ scheme: 'file', fsPath: uri, path: uri, toString: () => uri }),
+    joinPath: (base: { fsPath: string }, ...segments: string[]) => {
+        const joined = [base.fsPath, ...segments].join('/');
+        return { scheme: 'file', fsPath: joined, path: joined, toString: () => joined };
+    },
 };
 
 const EventEmitter = class {

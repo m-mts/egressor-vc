@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}';">
+    <link rel="stylesheet" href="{{cssUri}}">
+    <title>Traffic Panel</title>
+</head>
+<body>
+    <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Search host, path, secret..." />
+        <select id="status-filter">
+            <option value="all">All Status</option>
+            <option value="allowed">Allowed</option>
+            <option value="blocked">Blocked</option>
+            <option value="secret">Secret Injected</option>
+            <option value="non-http">Non-HTTP</option>
+        </select>
+        <select id="method-filter">
+            <option value="all">All Methods</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+        </select>
+        <button id="clear-btn" title="Clear events">Clear</button>
+    </div>
+
+    <div class="summary-bar" id="summary-bar">
+        <span class="summary-stat"><span class="dot allowed"></span> <span id="count-allowed">0</span> allowed</span>
+        <span class="summary-stat"><span class="dot blocked"></span> <span id="count-blocked">0</span> blocked</span>
+        <span class="summary-stat"><span class="dot secret"></span> <span id="count-secret">0</span> injected</span>
+        <span class="summary-stat"><span class="dot nonhttp"></span> <span id="count-nonhttp">0</span> non-HTTP</span>
+    </div>
+
+    <div id="event-list" class="event-list hidden"></div>
+
+    <div id="empty-state" class="empty-state">
+        <div class="icon">&#128274;</div>
+        <p>No traffic events yet.</p>
+        <p>Events will appear here when httpjail starts monitoring traffic.</p>
+    </div>
+
+    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+</body>
+</html>

@@ -107,15 +107,15 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/views/trafficPanel.js` (webview client-side script)
 - Create: `src/test/views.test.ts`
 
-- [ ] Implement VS Code WebviewViewProvider for the Traffic Panel sidebar
-- [ ] Display live traffic from httpjail events: method, host, path, status (allowed/blocked), timing
-- [ ] Display Secretless Broker events: secret-injected requests marked with lock icon
-- [ ] Display non-HTTP blocked traffic (from httpjail strong mode) as a separate category
-- [ ] Add color coding: green for allowed, red for blocked, lock icon for secret-injected, gray for non-HTTP blocked
-- [ ] Implement filtering (by host, method, status) and search
-- [ ] Wire panel to traffic events via extension messaging
-- [ ] Write tests: panel registration, message handling, data formatting
-- [ ] Run project test suite - must pass before task 6
+- [x] Implement VS Code WebviewViewProvider for the Traffic Panel sidebar
+- [x] Display live traffic from httpjail events: method, host, path, status (allowed/blocked), timing
+- [x] Display Secretless Broker events: secret-injected requests marked with lock icon
+- [x] Display non-HTTP blocked traffic (from httpjail strong mode) as a separate category
+- [x] Add color coding: green for allowed, red for blocked, lock icon for secret-injected, gray for non-HTTP blocked
+- [x] Implement filtering (by host, method, status) and search
+- [x] Wire panel to traffic events via extension messaging
+- [x] Write tests: panel registration, message handling, data formatting
+- [x] Run project test suite - must pass before task 6
 
 ### Task 6: Status Bar and Diagnostics
 
