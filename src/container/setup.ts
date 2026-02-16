@@ -254,6 +254,7 @@ export class EgressorSetup implements vscode.Disposable {
 
                 if (!brokerStarted) {
                     this.outputChannel.appendLine('Egressor: failed to start Secretless Broker (continuing without it)');
+                    vscode.window.showWarningMessage('Egressor: Secretless Broker failed to start. Secret injection is unavailable.');
                 }
             }
 

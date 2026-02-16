@@ -66,7 +66,7 @@ function validateRule(rule: unknown, index: number): ConfigValidationError[] {
 
     if (typeof r.host !== 'string' || r.host.trim() === '') {
         errors.push({ field: `${prefix}.host`, message: 'host is required and must be a non-empty string' });
-    } else if (!/^\*?\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/.test(r.host.trim())) {
+    } else if (!/^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/.test(r.host.trim())) {
         errors.push({ field: `${prefix}.host`, message: 'host must be a valid hostname pattern (alphanumeric, dots, hyphens, optional *. prefix)' });
     }
 

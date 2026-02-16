@@ -34,7 +34,7 @@ export interface FileSystemOps {
 const defaultFsOps: FileSystemOps = {
     existsSync: (p: string) => fs.existsSync(p),
     mkdirSync: (p: string, opts?: { recursive: boolean }) => {
-        fs.mkdirSync(p, opts);
+        fs.mkdirSync(p, { ...opts, mode: 0o700 });
     },
     writeFileSync: (p: string, content: string) => {
         fs.writeFileSync(p, content, { mode: 0o600 });
