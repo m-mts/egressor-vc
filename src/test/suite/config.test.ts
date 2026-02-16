@@ -367,7 +367,7 @@ suite('Secretless Config Generator', () => {
             rules: [],
             secrets: [{ name: 'github-token', type: 'bearer_token', target: 'api.github.com' }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(result.version, '2');
         assert.ok(result.services['github-token']);
         assert.strictEqual(result.services['github-token'].protocol, 'http');
@@ -385,7 +385,7 @@ suite('Secretless Config Generator', () => {
                 headerName: 'X-API-Key',
             }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         assert.ok(result.services['api-key']);
         assert.ok(result.services['api-key'].credentials['X-API-Key']);
     });
@@ -396,7 +396,7 @@ suite('Secretless Config Generator', () => {
             rules: [],
             secrets: [{ name: 'basic-creds', type: 'basic_auth', target: 'secure.example.com' }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['basic-creds'];
         assert.ok(svc);
         assert.ok(svc.credentials['username']);
@@ -414,7 +414,7 @@ suite('Secretless Config Generator', () => {
                 listenPort: 5432,
             }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['my-pg'];
         assert.ok(svc);
         assert.strictEqual(svc.protocol, 'pg');
@@ -435,7 +435,7 @@ suite('Secretless Config Generator', () => {
                 listenPort: 3306,
             }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['my-mysql'];
         assert.ok(svc);
         assert.strictEqual(svc.protocol, 'mysql');
@@ -447,7 +447,7 @@ suite('Secretless Config Generator', () => {
             rules: [],
             secrets: [{ name: 'my-ssh', type: 'ssh', target: 'server.example.com' }],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(Object.keys(result.services).length, 0);
     });
 
@@ -457,7 +457,7 @@ suite('Secretless Config Generator', () => {
             rules: [],
             secrets: [{ name: 'token', type: 'bearer_token', target: 'api.example.com' }],
         };
-        const yamlOutput = generateSecretlessYaml(config);
+        const yamlOutput = generateSecretlessYaml(config, '/test/secrets');
         assert.ok(yamlOutput.includes('version:'));
         assert.ok(yamlOutput.includes('services:'));
         assert.ok(yamlOutput.includes('token:'));
@@ -469,7 +469,7 @@ suite('Secretless Config Generator', () => {
             rules: [{ host: 'example.com' }],
             secrets: [],
         };
-        const result = generateSecretlessConfig(config);
+        const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(Object.keys(result.services).length, 0);
     });
 });

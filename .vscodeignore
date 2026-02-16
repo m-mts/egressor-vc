@@ -1,6 +1,9 @@
 .vscode/**
 .vscode-test/**
 src/**
+!src/views/trafficPanel.html
+!src/views/trafficPanel.css
+!src/views/trafficPanel.js
 .gitignore
 .eslintrc.json
 tsconfig.json

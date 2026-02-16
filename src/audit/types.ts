@@ -84,6 +84,8 @@ export interface SessionLoggerOptions {
     logDir: string;
     /** Maximum number of top hosts to include in summary */
     maxTopHosts?: number;
+    /** Maximum number of entries to keep in memory (default: 10000) */
+    maxEntries?: number;
 }
 
 /** Convert a TrafficEvent to a serializable form */

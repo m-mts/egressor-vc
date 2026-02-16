@@ -66,7 +66,51 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.window.showTextDocument(doc);
     });
 
-    context.subscriptions.push(startCmd, stopCmd, showSummaryCmd, exportLogCmd);
+    const storeSecretCmd = vscode.commands.registerCommand('egressor.storeSecret', async () => {
+        const provider = egressorSetup?.getCredentialProvider();
+        if (!provider) {
+            vscode.window.showWarningMessage('Egressor: Extension not initialized');
+            return;
+        }
+        const name = await vscode.window.showInputBox({ prompt: 'Secret name' });
+        if (!name) { return; }
+        const value = await vscode.window.showInputBox({ prompt: `Value for ${name}`, password: true });
+        if (value === undefined) { return; }
+        await provider.storeSecret(
+            { name, type: 'bearer_token', target: '' },
+            { value },
+        );
+        vscode.window.showInformationMessage(`Secret '${name}' stored`);
+    });
+
+    const deleteSecretCmd = vscode.commands.registerCommand('egressor.deleteSecret', async () => {
+        const provider = egressorSetup?.getCredentialProvider();
+        if (!provider) {
+            vscode.window.showWarningMessage('Egressor: Extension not initialized');
+            return;
+        }
+        const name = await vscode.window.showInputBox({ prompt: 'Secret name to delete' });
+        if (!name) { return; }
+        await provider.deleteSecret(name);
+        vscode.window.showInformationMessage(`Secret '${name}' deleted`);
+    });
+
+    const listSecretsCmd = vscode.commands.registerCommand('egressor.listSecrets', async () => {
+        const provider = egressorSetup?.getCredentialProvider();
+        if (!provider) {
+            vscode.window.showWarningMessage('Egressor: Extension not initialized');
+            return;
+        }
+        const secrets = provider.listSecrets();
+        if (secrets.length === 0) {
+            vscode.window.showInformationMessage('No secrets stored');
+        } else {
+            const names = secrets.map(s => s.name).join(', ');
+            vscode.window.showInformationMessage(`Stored secrets: ${names}`);
+        }
+    });
+
+    context.subscriptions.push(startCmd, stopCmd, showSummaryCmd, exportLogCmd, storeSecretCmd, deleteSecretCmd, listSecretsCmd);
     context.subscriptions.push(egressorSetup);
 
     // Auto-start if in container with .egressor.yml and autoStart enabled

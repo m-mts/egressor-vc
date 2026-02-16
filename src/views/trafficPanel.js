@@ -186,10 +186,14 @@ function render() {
         else if (e.status === 'blocked') { counts.blocked++; }
     }
 
-    document.getElementById('count-allowed').textContent = String(counts.allowed);
-    document.getElementById('count-blocked').textContent = String(counts.blocked);
-    document.getElementById('count-secret').textContent = String(counts.secret);
-    document.getElementById('count-nonhttp').textContent = String(counts.nonhttp);
+    const countAllowed = document.getElementById('count-allowed');
+    const countBlocked = document.getElementById('count-blocked');
+    const countSecret = document.getElementById('count-secret');
+    const countNonhttp = document.getElementById('count-nonhttp');
+    if (countAllowed) countAllowed.textContent = String(counts.allowed);
+    if (countBlocked) countBlocked.textContent = String(counts.blocked);
+    if (countSecret) countSecret.textContent = String(counts.secret);
+    if (countNonhttp) countNonhttp.textContent = String(counts.nonhttp);
 
     if (filtered.length === 0) {
         eventList.classList.add('hidden');

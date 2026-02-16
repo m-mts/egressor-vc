@@ -156,6 +156,7 @@ export class HttpjailManager implements vscode.Disposable {
         this.outputChannel.appendLine('Stopping httpjail...');
 
         return new Promise<void>((resolve) => {
+            let cleaned = false;
             const timeout = setTimeout(() => {
                 // Force kill if graceful shutdown times out
                 if (this.process) {
@@ -165,6 +166,8 @@ export class HttpjailManager implements vscode.Disposable {
             }, 5000);
 
             const cleanup = () => {
+                if (cleaned) { return; }
+                cleaned = true;
                 clearTimeout(timeout);
                 if (this.streamParser) {
                     this.streamParser.flush();
@@ -243,7 +246,7 @@ export class HttpjailManager implements vscode.Disposable {
         }
 
         // Proxy port
-        if (options.proxyPort) {
+        if (options.proxyPort !== undefined && options.proxyPort !== null) {
             args.push('--port', String(options.proxyPort));
         }
 

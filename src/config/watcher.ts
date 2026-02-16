@@ -35,6 +35,7 @@ export class ConfigWatcher implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
     private currentConfig: ResolvedConfig | undefined;
     private outputDir: string;
+    private secretsDir: string;
     private callbacks: ConfigWatcherCallbacks;
     private fs: FileSystem;
 
@@ -42,15 +43,26 @@ export class ConfigWatcher implements vscode.Disposable {
         private workspaceRoot: string,
         outputDir: string,
         callbacks: ConfigWatcherCallbacks,
-        fileSystem?: FileSystem
+        fileSystem?: FileSystem,
+        secretsDir?: string
     ) {
         this.outputDir = outputDir;
+        this.secretsDir = secretsDir ?? '/run/secrets';
         this.callbacks = callbacks;
         this.fs = fileSystem ?? defaultFs;
     }
 
     /** Start watching for config file changes */
     start(): void {
+        // Dispose previous watcher to prevent leaks on re-start
+        if (this.watcher) {
+            for (const d of this.disposables) {
+                d.dispose();
+            }
+            this.disposables = [];
+            this.watcher = undefined;
+        }
+
         const pattern = new vscode.RelativePattern(this.workspaceRoot, '.egressor.yml');
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
 
@@ -102,7 +114,7 @@ export class ConfigWatcher implements vscode.Disposable {
 
         // Write secretless.yml if secrets are configured
         if (config.secrets.length > 0) {
-            const secretlessContent = generateSecretlessYaml(config);
+            const secretlessContent = generateSecretlessYaml(config, this.secretsDir);
             this.fs.writeFileSync(path.join(this.outputDir, 'secretless.yml'), secretlessContent);
         }
     }

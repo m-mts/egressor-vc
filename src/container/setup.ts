@@ -166,8 +166,10 @@ export class EgressorSetup implements vscode.Disposable {
                 },
             };
 
+            const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
+
             if (!this.configWatcher) {
-                this.configWatcher = new ConfigWatcher(workspacePath, outputDir, callbacks);
+                this.configWatcher = new ConfigWatcher(workspacePath, outputDir, callbacks, undefined, secretsDir);
             }
             this.configWatcher.start();
 
@@ -184,7 +186,6 @@ export class EgressorSetup implements vscode.Disposable {
                 await promptForMissingSecrets(config.secrets, this.credentialProvider);
 
                 // Write secret files for Secretless Broker
-                const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
                 const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
                 this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
             }
@@ -212,7 +213,6 @@ export class EgressorSetup implements vscode.Disposable {
             // 7. Start Secretless Broker if secrets configured
             if (config.secrets.length > 0) {
                 const configFilePath = path.join(outputDir, 'secretless.yml');
-                const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
                 const brokerStarted = await this.brokerManager.start({
                     configFilePath,
                     secretsDir,
@@ -309,14 +309,18 @@ export class EgressorSetup implements vscode.Disposable {
             this.trafficPanel.postTrafficEvent(event);
             this.statusBar.onTrafficEvent(event);
             this.diagnostics.onTrafficEvent(event);
-            this.sessionLogger.logTrafficEvent(event);
+            this.sessionLogger.logTrafficEvent(event).catch(err => {
+                this.outputChannel.appendLine(`Egressor: audit log error: ${err}`);
+            });
         });
         this.disposables.push(trafficSub);
 
         // Secretless Broker events
         const secretSub = this.brokerManager.onSecretInjection((event: SecretInjectionEvent) => {
             this.trafficPanel.postSecretEvent(event);
-            this.sessionLogger.logSecretInjectionEvent(event);
+            this.sessionLogger.logSecretInjectionEvent(event).catch(err => {
+                this.outputChannel.appendLine(`Egressor: audit log error: ${err}`);
+            });
         });
         this.disposables.push(secretSub);
     }

@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { execSync as nodeExecSync } from 'child_process';
+import { execSync as nodeExecSync, execFileSync as nodeExecFileSync } from 'child_process';
 import * as fs from 'fs';
 
 /** Interface for OS/process operations, enabling testability */
 export interface SystemOperations {
     execSync(command: string): string;
+    execFileSync(file: string, args: string[]): string;
     platform(): string;
     arch(): string;
     existsSync(filePath: string): boolean;
@@ -15,6 +16,9 @@ export interface SystemOperations {
 const defaultSysOps: SystemOperations = {
     execSync(command: string): string {
         return nodeExecSync(command, { encoding: 'utf-8' }).toString().trim();
+    },
+    execFileSync(file: string, args: string[]): string {
+        return nodeExecFileSync(file, args, { encoding: 'utf-8' }).toString().trim();
     },
     platform(): string {
         return process.platform;
@@ -80,7 +84,7 @@ export function detectHttpjail(sysOps: SystemOperations = defaultSysOps): Detect
  */
 function getVersion(binaryPath: string, sysOps: SystemOperations): string | undefined {
     try {
-        const output = sysOps.execSync(`"${binaryPath}" --version`);
+        const output = sysOps.execFileSync(binaryPath, ['--version']);
         // Extract version from output like "httpjail v0.1.0" or "0.1.0"
         const match = output.match(/v?(\d+\.\d+\.\d+)/);
         return match ? match[1] : output;
@@ -156,9 +160,9 @@ async function autoInstall(downloadUrl: string, sysOps: SystemOperations): Promi
     const installPath = path.join(installDir, HTTPJAIL_BINARY_NAME);
 
     try {
-        sysOps.execSync(`mkdir -p "${installDir}"`);
-        sysOps.execSync(`curl -fsSL "${downloadUrl}" -o "${installPath}"`);
-        sysOps.execSync(`chmod +x "${installPath}"`);
+        sysOps.execFileSync('mkdir', ['-p', installDir]);
+        sysOps.execFileSync('curl', ['-fsSL', downloadUrl, '-o', installPath]);
+        sysOps.execFileSync('chmod', ['+x', installPath]);
 
         // Verify installation
         const detection = detectHttpjail(sysOps);

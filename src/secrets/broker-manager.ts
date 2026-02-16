@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'child_process';
 import {
     BrokerProcessState,
@@ -107,7 +108,11 @@ export class SecretlessBrokerManager implements vscode.Disposable {
         }
 
         for (const [name, value] of Object.entries(secrets)) {
-            const filePath = `${secretsDir}/${name}`;
+            const filePath = path.join(secretsDir, name);
+            const resolved = path.resolve(filePath);
+            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep) && resolved !== path.resolve(secretsDir)) {
+                throw new Error(`Invalid secret name: ${name} (path traversal detected)`);
+            }
             this.fsOps.writeFileSync(filePath, value);
         }
     }
@@ -117,7 +122,11 @@ export class SecretlessBrokerManager implements vscode.Disposable {
      */
     removeSecretFiles(secretsDir: string, names: string[]): void {
         for (const name of names) {
-            const filePath = `${secretsDir}/${name}`;
+            const filePath = path.join(secretsDir, name);
+            const resolved = path.resolve(filePath);
+            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep) && resolved !== path.resolve(secretsDir)) {
+                throw new Error(`Invalid secret name: ${name} (path traversal detected)`);
+            }
             if (this.fsOps.existsSync(filePath)) {
                 this.fsOps.unlinkSync(filePath);
             }
@@ -175,6 +184,7 @@ export class SecretlessBrokerManager implements vscode.Disposable {
         this.outputChannel.appendLine('Stopping Secretless Broker...');
 
         return new Promise<void>((resolve) => {
+            let cleaned = false;
             const timeout = setTimeout(() => {
                 if (this.process) {
                     this.process.kill('SIGKILL');
@@ -183,6 +193,8 @@ export class SecretlessBrokerManager implements vscode.Disposable {
             }, 5000);
 
             const cleanup = () => {
+                if (cleaned) { return; }
+                cleaned = true;
                 clearTimeout(timeout);
                 if (this.streamParser) {
                     this.streamParser.flush();
@@ -237,7 +249,7 @@ export class SecretlessBrokerManager implements vscode.Disposable {
 
         args.push('-f', options.configFilePath);
 
-        if (options.healthCheckPort) {
+        if (options.healthCheckPort !== undefined && options.healthCheckPort !== null) {
             args.push('-p', String(options.healthCheckPort));
         }
 

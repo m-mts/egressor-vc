@@ -1,6 +1,14 @@
 import { ResolvedConfig, EgressRule } from './types';
 
 /**
+ * Escape a string for safe interpolation into a JavaScript string literal.
+ * Prevents injection of arbitrary JS via crafted host/path values.
+ */
+function escapeJsString(s: string): string {
+    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+/**
  * Generate a single httpjail JavaScript rule expression for a rule.
  * httpjail rules are JS expressions that return true (allow) or false (block).
  * Available variables in httpjail rule context: host, method, path, url
@@ -10,21 +18,21 @@ function ruleToExpression(rule: EgressRule): string {
 
     // Host matching: support wildcards like *.github.com
     if (rule.host.startsWith('*.')) {
-        const domain = rule.host.slice(2);
+        const domain = escapeJsString(rule.host.slice(2));
         conditions.push(`(host === "${domain}" || host.endsWith(".${domain}"))`);
     } else {
-        conditions.push(`host === "${rule.host}"`);
+        conditions.push(`host === "${escapeJsString(rule.host)}"`);
     }
 
     // Method filtering
     if (rule.methods && rule.methods.length > 0) {
-        const methodList = rule.methods.map(m => `"${m}"`).join(', ');
+        const methodList = rule.methods.map(m => `"${escapeJsString(m)}"`).join(', ');
         conditions.push(`[${methodList}].includes(method)`);
     }
 
     // Path filtering
     if (rule.paths && rule.paths.length > 0) {
-        const pathChecks = rule.paths.map(p => `path.startsWith("${p}")`).join(' || ');
+        const pathChecks = rule.paths.map(p => `path.startsWith("${escapeJsString(p)}")`).join(' || ');
         conditions.push(`(${pathChecks})`);
     }
 

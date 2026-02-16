@@ -47,6 +47,7 @@ export class SessionLogger {
     private readonly logDir: string;
     private readonly fsOps: FileSystemOps;
     private readonly idGen: IdGenerator;
+    private readonly maxEntries: number;
     private sessionId: string;
     private logFilePath: string;
     private entries: AuditEntry[] = [];
@@ -59,6 +60,7 @@ export class SessionLogger {
         idGen?: IdGenerator,
     ) {
         this.logDir = options.logDir;
+        this.maxEntries = options.maxEntries ?? 10000;
         this.fsOps = fsOps ?? defaultFsOps();
         this.idGen = idGen ?? defaultIdGenerator;
         this.sessionId = '';
@@ -143,6 +145,9 @@ export class SessionLogger {
     /** Write an entry to the in-memory log and append to the log file */
     private async writeEntry(entry: AuditEntry): Promise<void> {
         this.entries.push(entry);
+        if (this.entries.length > this.maxEntries) {
+            this.entries = this.entries.slice(-this.maxEntries);
+        }
         if (this.initialized) {
             await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
         }

@@ -122,8 +122,8 @@ function validateSecret(secret: unknown, index: number): ConfigValidationError[]
         errors.push({ field: `${prefix}.headerName`, message: 'headerName is required for header type secrets' });
     }
 
-    if ((s.type === 'postgresql' || s.type === 'mysql') && (typeof s.listenPort !== 'number' || s.listenPort < 1 || s.listenPort > 65535)) {
-        errors.push({ field: `${prefix}.listenPort`, message: 'listenPort is required for database connectors and must be 1-65535' });
+    if ((s.type === 'postgresql' || s.type === 'mysql') && (typeof s.listenPort !== 'number' || !Number.isInteger(s.listenPort) || s.listenPort < 1 || s.listenPort > 65535)) {
+        errors.push({ field: `${prefix}.listenPort`, message: 'listenPort is required for database connectors and must be an integer 1-65535' });
     }
 
     return errors;

@@ -176,9 +176,8 @@ suite('httpjail Stream Parser', () => {
 suite('httpjail Installer', () => {
     test('detects httpjail on PATH', () => {
         const sysOps: SystemOperations = {
-            execSync: sinon.stub()
-                .onFirstCall().returns('/usr/local/bin/httpjail')
-                .onSecondCall().returns('httpjail v0.3.0'),
+            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('httpjail v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -192,9 +191,8 @@ suite('httpjail Installer', () => {
 
     test('detects httpjail at known path when not on PATH', () => {
         const sysOps: SystemOperations = {
-            execSync: sinon.stub()
-                .onFirstCall().throws(new Error('not found'))
-                .onSecondCall().returns('0.2.0'),
+            execSync: sinon.stub().throws(new Error('not found')),
+            execFileSync: sinon.stub().returns('0.2.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: (p: string) => p === '/usr/local/bin/httpjail',
@@ -208,6 +206,7 @@ suite('httpjail Installer', () => {
     test('returns not found when binary is absent', () => {
         const sysOps: SystemOperations = {
             execSync: sinon.stub().throws(new Error('not found')),
+            execFileSync: sinon.stub().throws(new Error('not found')),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -304,9 +303,8 @@ suite('httpjail Manager', () => {
             spawn: sinon.stub().returns(mockProc),
         };
         const sysOps: SystemOperations = {
-            execSync: sinon.stub()
-                .onFirstCall().returns('/usr/local/bin/httpjail')
-                .onSecondCall().returns('v0.3.0'),
+            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -333,6 +331,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: spawnStub };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -362,6 +361,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const sysOps: SystemOperations = {
             execSync: sinon.stub().throws(new Error('not found')),
+            execFileSync: sinon.stub().throws(new Error('not found')),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -385,6 +385,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -404,6 +405,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -440,6 +442,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: spawnStub };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -477,6 +480,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: spawnStub };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -502,6 +506,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: spawnStub };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -534,6 +539,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -564,6 +570,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -589,6 +596,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -619,6 +627,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -646,6 +655,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -670,6 +680,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
         const sysOps: SystemOperations = {
             execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
+            execFileSync: sinon.stub().returns('v0.3.0'),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
