@@ -110,6 +110,8 @@ function validateSecret(secret: unknown, index: number): ConfigValidationError[]
 
     if (typeof s.name !== 'string' || s.name.trim() === '') {
         errors.push({ field: `${prefix}.name`, message: 'name is required and must be a non-empty string' });
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(s.name.trim())) {
+        errors.push({ field: `${prefix}.name`, message: 'name must contain only alphanumeric characters, hyphens, and underscores' });
     }
 
     if (!VALID_SECRET_TYPES.includes(s.type as SecretType)) {

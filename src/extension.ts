@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const name = await vscode.window.showInputBox({ prompt: 'Secret name' });
         if (!name) { return; }
         const value = await vscode.window.showInputBox({ prompt: `Value for ${name}`, password: true });
-        if (value === undefined) { return; }
+        if (value === undefined || value === '') { return; }
         await provider.storeSecret(
             { name, type: 'bearer_token', target: '' },
             { value },

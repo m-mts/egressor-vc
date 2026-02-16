@@ -121,7 +121,9 @@ function matchesFilter(entry) {
 function getRowClass(entry) {
     if (entry.type === 'secret') return 'secret-injected';
     if (entry.category === 'non-http') return 'non-http';
-    return entry.status;
+    if (entry.status === 'allowed') return 'allowed';
+    if (entry.status === 'blocked') return 'blocked';
+    return 'unknown';
 }
 
 /** @param {PanelEntry} entry */
@@ -135,7 +137,9 @@ function getStatusIcon(entry) {
 function getStatusClass(entry) {
     if (entry.type === 'secret') return 'secret-injected';
     if (entry.category === 'non-http') return 'non-http';
-    return entry.status;
+    if (entry.status === 'allowed') return 'allowed';
+    if (entry.status === 'blocked') return 'blocked';
+    return 'unknown';
 }
 
 /** @param {PanelEntry} entry */

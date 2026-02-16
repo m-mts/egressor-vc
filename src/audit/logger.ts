@@ -151,12 +151,13 @@ export class SessionLogger {
 
     /** Write an entry to the in-memory log and append to the log file */
     private async writeEntry(entry: AuditEntry): Promise<void> {
+        if (!this.initialized) {
+            return;
+        }
         this.entries.push(entry);
         if (this.entries.length > this.maxEntries) {
             this.entries = this.entries.slice(-this.maxEntries);
         }
-        if (this.initialized) {
-            await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
-        }
+        await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
     }
 }

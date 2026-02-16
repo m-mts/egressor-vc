@@ -129,9 +129,9 @@ export class EgressorSetup implements vscode.Disposable {
      * 7. Start session logger
      */
     async start(): Promise<boolean> {
-        if (this.state === 'running') {
-            this.outputChannel.appendLine('Egressor is already running');
-            return true;
+        if (this.state === 'running' || this.state === 'starting') {
+            this.outputChannel.appendLine('Egressor is already running or starting');
+            return this.state === 'running';
         }
 
         this.state = 'starting';
@@ -313,6 +313,11 @@ export class EgressorSetup implements vscode.Disposable {
             if (this.brokerManager.getState() === 'running') {
                 const configFilePath = path.join(outputDir, 'secretless.yml');
                 await this.brokerManager.restart({ configFilePath, secretsDir });
+            }
+        } else {
+            // Secrets removed from config - stop broker if running
+            if (this.brokerManager.getState() === 'running') {
+                await this.brokerManager.stop();
             }
         }
     }
