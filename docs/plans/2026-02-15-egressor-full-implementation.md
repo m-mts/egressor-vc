@@ -139,13 +139,13 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/audit/summary.ts` (session summary generator)
 - Create: `src/test/audit.test.ts`
 
-- [ ] Implement session logger that writes structured JSON logs to a session file
-- [ ] Log all events: httpjail traffic (allowed/blocked HTTP, blocked non-HTTP), Secretless Broker injections, rule matches
-- [ ] Implement session summary generation (total requests, blocked count, non-HTTP blocked count, secret injection count, anomalies)
-- [ ] Add VS Code commands: "Egressor: Show Session Summary", "Egressor: Export Session Log"
-- [ ] Wire logger to traffic events from both httpjail and Secretless Broker
-- [ ] Write tests: log writing, summary generation, export functionality
-- [ ] Run project test suite - must pass before task 8
+- [x] Implement session logger that writes structured JSON logs to a session file
+- [x] Log all events: httpjail traffic (allowed/blocked HTTP, blocked non-HTTP), Secretless Broker injections, rule matches
+- [x] Implement session summary generation (total requests, blocked count, non-HTTP blocked count, secret injection count, anomalies)
+- [x] Add VS Code commands: "Egressor: Show Session Summary", "Egressor: Export Session Log"
+- [x] Wire logger to traffic events from both httpjail and Secretless Broker
+- [x] Write tests: log writing, summary generation, export functionality
+- [x] Run project test suite - must pass before task 8
 
 ### Task 8: Container Integration and Extension Lifecycle
 

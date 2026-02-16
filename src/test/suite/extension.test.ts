@@ -33,6 +33,7 @@ suite('Extension Test Suite', () => {
         const disposables: { dispose(): void }[] = [];
         const context = {
             subscriptions: disposables,
+            globalStorageUri: vscode.Uri.file('/tmp/egressor-test-storage'),
         } as unknown as vscode.ExtensionContext;
 
         activate(context);
@@ -56,7 +57,7 @@ suite('Extension Test Suite', () => {
         assert.ok(commandNames.includes('egressor.start'), 'Should register egressor.start');
         assert.ok(commandNames.includes('egressor.stop'), 'Should register egressor.stop');
 
-        assert.ok(disposables.length >= 3, `Expected at least 3 disposables, got ${disposables.length}`);
+        assert.ok(disposables.length >= 5, `Expected at least 5 disposables, got ${disposables.length}`);
     });
 
     test('deactivate does not throw', () => {
@@ -73,7 +74,10 @@ suite('Extension Test Suite', () => {
         });
         (vscode.commands.registerCommand as unknown as StubFn).returns({ dispose: sandbox.stub() });
 
-        const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
+        const context = {
+            subscriptions: [],
+            globalStorageUri: vscode.Uri.file('/tmp/egressor-test-storage'),
+        } as unknown as vscode.ExtensionContext;
         activate(context);
 
         assert.ok(appendLine.called, 'appendLine should be called');
