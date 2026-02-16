@@ -158,7 +158,11 @@ export class EgressorSetup implements vscode.Disposable {
             const outputDir = path.join(this.context.globalStorageUri.fsPath, 'generated');
 
             const callbacks: ConfigWatcherCallbacks = {
-                onConfigChanged: (config) => this.onConfigChanged(config),
+                onConfigChanged: (config) => {
+                    this.onConfigChanged(config).catch(err => {
+                        this.outputChannel.appendLine(`Egressor: config reload failed: ${err}`);
+                    });
+                },
                 onConfigError: (errors) => {
                     for (const err of errors) {
                         this.outputChannel.appendLine(`Egressor config error: ${err}`);
@@ -263,6 +267,13 @@ export class EgressorSetup implements vscode.Disposable {
 
         await Promise.all(stopPromises);
 
+        // Stop config watcher
+        this.configWatcher?.dispose();
+        this.configWatcher = undefined;
+
+        // Flush audit log
+        await this.sessionLogger.stop();
+
         // Dispose event listener subscriptions
         for (const d of this.disposables) {
             d.dispose();
@@ -288,11 +299,21 @@ export class EgressorSetup implements vscode.Disposable {
             await this.httpjailManager.reloadRules(rulesFilePath);
         }
 
-        // If secrets changed, update broker too
-        if (config.secrets.length > 0 && this.brokerManager.getState() === 'running') {
-            const configFilePath = path.join(outputDir, 'secretless.yml');
+        // If secrets changed, prompt for new ones and update broker
+        if (config.secrets.length > 0) {
             const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
-            await this.brokerManager.restart({ configFilePath, secretsDir });
+
+            // Prompt for any newly added secrets
+            await promptForMissingSecrets(config.secrets, this.credentialProvider);
+
+            // Regenerate secret files
+            const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
+            this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
+
+            if (this.brokerManager.getState() === 'running') {
+                const configFilePath = path.join(outputDir, 'secretless.yml');
+                await this.brokerManager.restart({ configFilePath, secretsDir });
+            }
         }
     }
 

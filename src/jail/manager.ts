@@ -83,6 +83,14 @@ export class HttpjailManager implements vscode.Disposable {
             return this.binaryPath;
         }
 
+        // Check user-configured path first
+        const configuredPath = vscode.workspace.getConfiguration('egressor').get<string>('httpjailPath');
+        if (configuredPath) {
+            this.binaryPath = configuredPath;
+            this.outputChannel.appendLine(`httpjail using configured path: ${configuredPath}`);
+            return this.binaryPath;
+        }
+
         const detection: DetectionResult = detectHttpjail(this.sysOps);
         if (detection.found && detection.path) {
             this.binaryPath = detection.path;

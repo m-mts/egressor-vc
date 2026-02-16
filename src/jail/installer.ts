@@ -40,7 +40,7 @@ function getSearchPaths(): string[] {
     return [
         '/usr/local/bin/httpjail',
         '/usr/bin/httpjail',
-        path.join(process.env.HOME || '~', '.local', 'bin', 'httpjail'),
+        path.join(process.env.HOME || '/root', '.local', 'bin', 'httpjail'),
     ];
 }
 
@@ -156,7 +156,7 @@ export async function promptInstall(sysOps: SystemOperations = defaultSysOps): P
  * Download and install httpjail binary automatically.
  */
 async function autoInstall(downloadUrl: string, sysOps: SystemOperations): Promise<string | undefined> {
-    const installDir = path.join(process.env.HOME || '~', '.local', 'bin');
+    const installDir = path.join(process.env.HOME || '/root', '.local', 'bin');
     const installPath = path.join(installDir, HTTPJAIL_BINARY_NAME);
 
     try {

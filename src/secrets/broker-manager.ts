@@ -110,7 +110,7 @@ export class SecretlessBrokerManager implements vscode.Disposable {
         for (const [name, value] of Object.entries(secrets)) {
             const filePath = path.join(secretsDir, name);
             const resolved = path.resolve(filePath);
-            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep) && resolved !== path.resolve(secretsDir)) {
+            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep)) {
                 throw new Error(`Invalid secret name: ${name} (path traversal detected)`);
             }
             this.fsOps.writeFileSync(filePath, value);
@@ -124,7 +124,7 @@ export class SecretlessBrokerManager implements vscode.Disposable {
         for (const name of names) {
             const filePath = path.join(secretsDir, name);
             const resolved = path.resolve(filePath);
-            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep) && resolved !== path.resolve(secretsDir)) {
+            if (!resolved.startsWith(path.resolve(secretsDir) + path.sep)) {
                 throw new Error(`Invalid secret name: ${name} (path traversal detected)`);
             }
             if (this.fsOps.existsSync(filePath)) {

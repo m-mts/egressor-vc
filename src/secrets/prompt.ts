@@ -91,9 +91,11 @@ export async function promptForSecret(
             }
 
             const defaultPort = declaration.type === 'postgresql' ? '5432' : '3306';
+            const targetParts = declaration.target.split(':');
+            const targetPort = targetParts.length > 1 ? targetParts[targetParts.length - 1] : defaultPort;
             const port = await windowApi.showInputBox({
                 prompt: `Enter ${dbType} port for "${declaration.name}"`,
-                value: String(declaration.listenPort ?? defaultPort),
+                value: String(targetPort),
                 ignoreFocusOut: true,
             });
             if (port === undefined) {

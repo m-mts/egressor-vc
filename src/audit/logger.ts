@@ -37,10 +37,12 @@ export interface IdGenerator {
     (): string;
 }
 
-let idCounter = 0;
-function defaultIdGenerator(): string {
-    idCounter++;
-    return `evt_${Date.now()}_${idCounter}`;
+function createDefaultIdGenerator(): IdGenerator {
+    let counter = 0;
+    return () => {
+        counter++;
+        return `evt_${Date.now()}_${counter}`;
+    };
 }
 
 export class SessionLogger {
@@ -62,7 +64,7 @@ export class SessionLogger {
         this.logDir = options.logDir;
         this.maxEntries = options.maxEntries ?? 10000;
         this.fsOps = fsOps ?? defaultFsOps();
-        this.idGen = idGen ?? defaultIdGenerator;
+        this.idGen = idGen ?? createDefaultIdGenerator();
         this.sessionId = '';
         this.logFilePath = '';
         this.sessionStartTime = new Date();
@@ -77,6 +79,11 @@ export class SessionLogger {
 
         await this.fsOps.mkdir(this.logDir, { recursive: true });
         this.initialized = true;
+    }
+
+    /** Stop the logger and ensure all pending writes are flushed */
+    async stop(): Promise<void> {
+        this.initialized = false;
     }
 
     /** Log a traffic event from httpjail */
