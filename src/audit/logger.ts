@@ -164,13 +164,9 @@ export class SessionLogger {
         }
         try {
             await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
-        } catch (err) {
-            // Remove entry from in-memory log to keep it in sync with disk
-            const idx = this.entries.lastIndexOf(entry);
-            if (idx >= 0) {
-                this.entries.splice(idx, 1);
-            }
-            throw err;
+        } catch {
+            // Keep entry in memory even if disk write fails;
+            // the in-memory log remains useful for session summaries
         }
     }
 }

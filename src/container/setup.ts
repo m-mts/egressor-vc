@@ -290,7 +290,7 @@ export class EgressorSetup implements vscode.Disposable {
     }
 
     /**
-     * Graceful shutdown: stop httpjail, stop broker, flush audit log.
+     * Graceful shutdown: stop httpjail, stop broker, flush audit log, clean up secrets.
      */
     async stop(): Promise<void> {
         if (this.state === 'idle' || this.state === 'stopping') {
@@ -317,6 +317,9 @@ export class EgressorSetup implements vscode.Disposable {
 
         await Promise.all(stopPromises);
 
+        // Clean up secret files from disk
+        this.cleanupSecretFiles();
+
         // Stop config watcher
         this.configWatcher?.dispose();
         this.configWatcher = undefined;
@@ -339,6 +342,9 @@ export class EgressorSetup implements vscode.Disposable {
      * Handle config changes: reload httpjail rules, regenerate secretless config.
      */
     private async onConfigChanged(config: ResolvedConfig): Promise<void> {
+        if (this.state !== 'running') {
+            return;
+        }
         this.currentConfig = config;
         this.outputChannel.appendLine('Egressor: config changed, reloading...');
 
@@ -403,6 +409,25 @@ export class EgressorSetup implements vscode.Disposable {
         this.disposables.push(secretSub);
     }
 
+    /** Remove secret files written to disk */
+    private cleanupSecretFiles(): void {
+        try {
+            const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const fs = require('fs');
+            if (fs.existsSync(secretsDir)) {
+                const files = fs.readdirSync(secretsDir) as string[];
+                for (const file of files) {
+                    const filePath = path.join(secretsDir, file);
+                    try { fs.unlinkSync(filePath); } catch { /* best-effort */ }
+                }
+                try { fs.rmdirSync(secretsDir); } catch { /* best-effort */ }
+            }
+        } catch {
+            // Best-effort cleanup; don't fail shutdown
+        }
+    }
+
     /** Clean up resources allocated during a partial/failed start */
     private async cleanupPartialStart(): Promise<void> {
         this.configWatcher?.dispose();
@@ -417,6 +442,9 @@ export class EgressorSetup implements vscode.Disposable {
     dispose(): void {
         if (this.disposed) { return; }
         this.disposed = true;
+
+        // Clean up secret files
+        this.cleanupSecretFiles();
 
         // Stop everything synchronously (best-effort)
         this.httpjailManager.dispose();
