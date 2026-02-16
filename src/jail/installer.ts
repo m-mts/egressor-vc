@@ -1,12 +1,16 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { execSync as nodeExecSync, execFileSync as nodeExecFileSync } from 'child_process';
+import { execSync as nodeExecSync, execFileSync as nodeExecFileSync, execFile as nodeExecFile } from 'child_process';
+import { promisify } from 'util';
 import * as fs from 'fs';
+
+const execFileAsync = promisify(nodeExecFile);
 
 /** Interface for OS/process operations, enabling testability */
 export interface SystemOperations {
     execSync(command: string): string;
     execFileSync(file: string, args: string[]): string;
+    execFile(file: string, args: string[]): Promise<string>;
     platform(): string;
     arch(): string;
     existsSync(filePath: string): boolean;
@@ -19,6 +23,10 @@ const defaultSysOps: SystemOperations = {
     },
     execFileSync(file: string, args: string[]): string {
         return nodeExecFileSync(file, args, { encoding: 'utf-8' }).toString().trim();
+    },
+    async execFile(file: string, args: string[]): Promise<string> {
+        const { stdout } = await execFileAsync(file, args, { encoding: 'utf-8' });
+        return stdout.trim();
     },
     platform(): string {
         return process.platform;
@@ -59,8 +67,8 @@ export interface DetectionResult {
 export function detectHttpjail(sysOps: SystemOperations = defaultSysOps): DetectionResult {
     // First try `which` / `where` to find it on PATH
     try {
-        const cmd = sysOps.platform() === 'win32' ? 'where httpjail' : 'which httpjail';
-        const binaryPath = sysOps.execSync(cmd);
+        const cmd = sysOps.platform() === 'win32' ? 'where' : 'which';
+        const binaryPath = sysOps.execFileSync(cmd, ['httpjail']);
         if (binaryPath) {
             const version = getVersion(binaryPath, sysOps);
             return { found: true, path: binaryPath, version };
@@ -160,9 +168,9 @@ async function autoInstall(downloadUrl: string, sysOps: SystemOperations): Promi
     const installPath = path.join(installDir, HTTPJAIL_BINARY_NAME);
 
     try {
-        sysOps.execFileSync('mkdir', ['-p', installDir]);
-        sysOps.execFileSync('curl', ['-fsSL', downloadUrl, '-o', installPath]);
-        sysOps.execFileSync('chmod', ['+x', installPath]);
+        await sysOps.execFile('mkdir', ['-p', installDir]);
+        await sysOps.execFile('curl', ['-fsSL', downloadUrl, '-o', installPath]);
+        await sysOps.execFile('chmod', ['+x', installPath]);
 
         // Verify installation
         const detection = detectHttpjail(sysOps);

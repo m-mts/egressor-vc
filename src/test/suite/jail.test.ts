@@ -175,9 +175,13 @@ suite('httpjail Stream Parser', () => {
 
 suite('httpjail Installer', () => {
     test('detects httpjail on PATH', () => {
+        const execFileStub = sinon.stub();
+        execFileStub.withArgs('which', ['httpjail']).returns('/usr/local/bin/httpjail');
+        execFileStub.withArgs('/usr/local/bin/httpjail', ['--version']).returns('httpjail v0.3.0');
         const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('httpjail v0.3.0'),
+            execSync: sinon.stub().throws(new Error('should not be called')),
+            execFileSync: execFileStub,
+            execFile: sinon.stub().resolves(''),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -190,9 +194,13 @@ suite('httpjail Installer', () => {
     });
 
     test('detects httpjail at known path when not on PATH', () => {
+        const execFileStub = sinon.stub();
+        execFileStub.withArgs('which', ['httpjail']).throws(new Error('not found'));
+        execFileStub.withArgs('/usr/local/bin/httpjail', ['--version']).returns('0.2.0');
         const sysOps: SystemOperations = {
-            execSync: sinon.stub().throws(new Error('not found')),
-            execFileSync: sinon.stub().returns('0.2.0'),
+            execSync: sinon.stub().throws(new Error('should not be called')),
+            execFileSync: execFileStub,
+            execFile: sinon.stub().resolves(''),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: (p: string) => p === '/usr/local/bin/httpjail',
@@ -205,8 +213,9 @@ suite('httpjail Installer', () => {
 
     test('returns not found when binary is absent', () => {
         const sysOps: SystemOperations = {
-            execSync: sinon.stub().throws(new Error('not found')),
+            execSync: sinon.stub().throws(new Error('should not be called')),
             execFileSync: sinon.stub().throws(new Error('not found')),
+            execFile: sinon.stub().resolves(''),
             platform: () => 'linux',
             arch: () => 'x64',
             existsSync: () => false,
@@ -277,6 +286,33 @@ suite('httpjail Manager', () => {
         return proc;
     }
 
+    /** Create a standard sysOps mock where httpjail is detected on PATH */
+    function createFoundSysOps(): SystemOperations {
+        const execFileStub = sinon.stub();
+        execFileStub.withArgs('which', ['httpjail']).returns('/usr/local/bin/httpjail');
+        execFileStub.returns('v0.3.0');
+        return {
+            execSync: sinon.stub().throws(new Error('should not be called')),
+            execFileSync: execFileStub,
+            execFile: sinon.stub().resolves(''),
+            platform: () => 'linux',
+            arch: () => 'x64',
+            existsSync: () => false,
+        };
+    }
+
+    /** Create a sysOps mock where httpjail is NOT found */
+    function createNotFoundSysOps(): SystemOperations {
+        return {
+            execSync: sinon.stub().throws(new Error('should not be called')),
+            execFileSync: sinon.stub().throws(new Error('not found')),
+            execFile: sinon.stub().resolves(''),
+            platform: () => 'linux',
+            arch: () => 'x64',
+            existsSync: () => false,
+        };
+    }
+
     setup(() => {
         sandbox = sinon.createSandbox();
     });
@@ -308,13 +344,7 @@ suite('httpjail Manager', () => {
         const spawner: ProcessSpawner = {
             spawn: sinon.stub().returns(mockProc),
         };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         const result = await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -335,13 +365,7 @@ suite('httpjail Manager', () => {
         const mockProc = createMockProcess();
         const spawnStub = sinon.stub().returns(mockProc);
         const spawner: ProcessSpawner = { spawn: spawnStub };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({
@@ -365,13 +389,7 @@ suite('httpjail Manager', () => {
 
     test('start fails when binary not found', async () => {
         const output = createMockOutputChannel();
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().throws(new Error('not found')),
-            execFileSync: sinon.stub().throws(new Error('not found')),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createNotFoundSysOps();
 
         // Mock vscode.window.showWarningMessage to decline install
         (vscode.window.showWarningMessage as sinon.SinonStub).resolves('Cancel');
@@ -389,13 +407,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const mockProc = createMockProcess();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -409,13 +421,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const mockProc = createMockProcess();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -446,13 +452,7 @@ suite('httpjail Manager', () => {
             .onFirstCall().returns(mockProc1)
             .onSecondCall().returns(mockProc2);
         const spawner: ProcessSpawner = { spawn: spawnStub };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -484,13 +484,7 @@ suite('httpjail Manager', () => {
             .onFirstCall().returns(mockProc1)
             .onSecondCall().returns(mockProc2);
         const spawner: ProcessSpawner = { spawn: spawnStub };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules1.js' });
@@ -510,13 +504,7 @@ suite('httpjail Manager', () => {
             .onFirstCall().returns(mockProc1)
             .onSecondCall().returns(mockProc2);
         const spawner: ProcessSpawner = { spawn: spawnStub };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js', containerId: 'ctr' });
@@ -543,13 +531,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const mockProc = createMockProcess();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         const events: TrafficEvent[] = [];
@@ -574,13 +556,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const mockProc = createMockProcess();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         const events: TrafficEvent[] = [];
@@ -600,13 +576,7 @@ suite('httpjail Manager', () => {
         const output = createMockOutputChannel();
         const mockProc = createMockProcess();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         const events: TrafficEvent[] = [];
@@ -631,13 +601,7 @@ suite('httpjail Manager', () => {
         // Override kill to not emit exit (we'll emit it manually)
         mockProc.kill = sinon.stub();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -659,13 +623,7 @@ suite('httpjail Manager', () => {
         const mockProc = createMockProcess();
         mockProc.kill = sinon.stub();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         await manager.start({ rulesFilePath: '/tmp/rules.js' });
@@ -684,13 +642,7 @@ suite('httpjail Manager', () => {
         const mockProc = createMockProcess();
         mockProc.kill = sinon.stub();
         const spawner: ProcessSpawner = { spawn: sinon.stub().returns(mockProc) };
-        const sysOps: SystemOperations = {
-            execSync: sinon.stub().returns('/usr/local/bin/httpjail'),
-            execFileSync: sinon.stub().returns('v0.3.0'),
-            platform: () => 'linux',
-            arch: () => 'x64',
-            existsSync: () => false,
-        };
+        const sysOps = createFoundSysOps();
 
         const manager = new HttpjailManager(output as unknown as vscode.OutputChannel, spawner, sysOps);
         const events: TrafficEvent[] = [];

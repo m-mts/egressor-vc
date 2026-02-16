@@ -160,7 +160,7 @@ export class SessionLogger {
         }
         this.entries.push(entry);
         if (this.entries.length > this.maxEntries) {
-            this.entries = this.entries.slice(-this.maxEntries);
+            this.entries.shift();
         }
         try {
             await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
