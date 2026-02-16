@@ -15,15 +15,15 @@ export interface ConfigWatcherCallbacks {
 /** Filesystem abstraction for testability */
 export interface FileSystem {
     readFileSync(path: string, encoding: string): string;
-    writeFileSync(path: string, content: string): void;
+    writeFileSync(path: string, content: string, options?: { mode?: number }): void;
     existsSync(path: string): boolean;
-    mkdirSync(path: string, options?: { recursive?: boolean }): void;
+    mkdirSync(path: string, options?: { recursive?: boolean; mode?: number }): void;
 }
 
 /** Default filesystem implementation using Node's fs module */
 const defaultFs: FileSystem = {
     readFileSync: (p, enc) => fs.readFileSync(p, enc as BufferEncoding) as string,
-    writeFileSync: (p, content) => fs.writeFileSync(p, content),
+    writeFileSync: (p, content, opts) => fs.writeFileSync(p, content, opts),
     existsSync: (p) => fs.existsSync(p),
     mkdirSync: (p, opts) => fs.mkdirSync(p, opts),
 };
@@ -117,17 +117,17 @@ export class ConfigWatcher implements vscode.Disposable {
     /** Write generated httpjail rules and secretless.yml */
     private writeDerivedConfigs(config: ResolvedConfig): void {
         if (!this.fs.existsSync(this.outputDir)) {
-            this.fs.mkdirSync(this.outputDir, { recursive: true });
+            this.fs.mkdirSync(this.outputDir, { recursive: true, mode: 0o700 });
         }
 
         // Write httpjail rules
         const rulesContent = generateHttpjailRules(config);
-        this.fs.writeFileSync(path.join(this.outputDir, 'httpjail-rules.js'), rulesContent);
+        this.fs.writeFileSync(path.join(this.outputDir, 'httpjail-rules.js'), rulesContent, { mode: 0o600 });
 
         // Write secretless.yml if secrets are configured
         if (config.secrets.length > 0) {
             const secretlessContent = generateSecretlessYaml(config, this.secretsDir);
-            this.fs.writeFileSync(path.join(this.outputDir, 'secretless.yml'), secretlessContent);
+            this.fs.writeFileSync(path.join(this.outputDir, 'secretless.yml'), secretlessContent, { mode: 0o600 });
         }
     }
 

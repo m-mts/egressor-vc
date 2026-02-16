@@ -79,9 +79,12 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
         }
         const value = await vscode.window.showInputBox({ prompt: `Value for ${name}`, password: true });
-        if (value === undefined || value === '') { return; }
+        if (!value?.trim()) { return; }
+        // Look up declaration from current config for accurate metadata
+        const config = egressorSetup?.getCurrentConfig();
+        const declaration = config?.secrets.find(s => s.name === name);
         await provider.storeSecret(
-            { name, type: 'bearer_token', target: '' },
+            declaration ?? { name, type: 'bearer_token', target: '' },
             { value },
         );
         vscode.window.showInformationMessage(`Secret '${name}' stored`);

@@ -162,6 +162,15 @@ export class SessionLogger {
         if (this.entries.length > this.maxEntries) {
             this.entries = this.entries.slice(-this.maxEntries);
         }
-        await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
+        try {
+            await this.fsOps.appendFile(this.logFilePath, JSON.stringify(entry) + '\n');
+        } catch (err) {
+            // Remove entry from in-memory log to keep it in sync with disk
+            const idx = this.entries.lastIndexOf(entry);
+            if (idx >= 0) {
+                this.entries.splice(idx, 1);
+            }
+            throw err;
+        }
     }
 }

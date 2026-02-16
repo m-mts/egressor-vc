@@ -120,6 +120,11 @@ export class EgressorSetup implements vscode.Disposable {
         return this.credentialProvider;
     }
 
+    /** Get the current resolved config, if loaded */
+    getCurrentConfig(): ResolvedConfig | undefined {
+        return this.currentConfig;
+    }
+
     /**
      * Start the full Egressor pipeline:
      * 1. Detect container context
@@ -203,9 +208,23 @@ export class EgressorSetup implements vscode.Disposable {
             }
             this.currentConfig = config;
 
+            // Check if stop() was called during config loading
+            if (this.state !== 'starting') {
+                await this.cleanupPartialStart();
+                this.state = 'idle';
+                return false;
+            }
+
             // 3. Check for and prompt missing secrets
             if (config.secrets.length > 0) {
                 await promptForMissingSecrets(config.secrets, this.credentialProvider);
+
+                // Check if stop() was called during secret prompting
+                if (this.state !== 'starting') {
+                    await this.cleanupPartialStart();
+                    this.state = 'idle';
+                    return false;
+                }
 
                 // Write secret files for Secretless Broker
                 const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
@@ -226,8 +245,7 @@ export class EgressorSetup implements vscode.Disposable {
                 strongMode: this.containerContext.isContainer,
             });
 
-            // Check if stop() was called while we were starting (before treating
-            // a manager failure as an error - the failure may be due to intentional shutdown)
+            // Check if stop() was called while we were starting
             if (this.state !== 'starting') {
                 this.outputChannel.appendLine('Egressor: start cancelled (stop was called during startup)');
                 await this.cleanupPartialStart();
