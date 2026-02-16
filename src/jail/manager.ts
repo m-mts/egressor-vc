@@ -64,7 +64,7 @@ export class HttpjailManager implements vscode.Disposable {
 
     /** Emit a traffic event to all listeners */
     private emitEvent(event: TrafficEvent): void {
-        for (const listener of this.listeners) {
+        for (const listener of [...this.listeners]) {
             listener(event);
         }
     }

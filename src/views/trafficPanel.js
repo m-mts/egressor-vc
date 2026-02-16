@@ -168,7 +168,7 @@ function renderRow(entry) {
     return `<div class="event-row ${rowClass}">
         <span class="event-status ${statusClass}">${statusIcon}</span>
         <span class="event-method">${escapeHtml(method)}</span>
-        <span class="event-host">${escapeHtml(host)}${entry.port ? ':' + entry.port : ''}</span>
+        <span class="event-host">${escapeHtml(host)}${entry.port ? ':' + escapeHtml(String(entry.port)) : ''}</span>
         <span class="event-path">${escapeHtml(path)}</span>
         <span class="event-timing">${timing}</span>
     </div>`;

@@ -3,6 +3,7 @@ import { EgressorSetup } from './container/setup';
 import { shouldAutoStart } from './container/detector';
 import { TrafficPanelProvider } from './views/trafficPanel';
 import { generateSessionSummary, formatSessionSummary } from './audit/summary';
+import { promptForSecret } from './secrets/prompt';
 
 let egressorSetup: EgressorSetup | undefined;
 
@@ -78,15 +79,14 @@ export function activate(context: vscode.ExtensionContext): void {
             vscode.window.showErrorMessage('Secret name must contain only alphanumeric characters, hyphens, and underscores');
             return;
         }
-        const value = await vscode.window.showInputBox({ prompt: `Value for ${name}`, password: true });
-        if (!value?.trim()) { return; }
         // Look up declaration from current config for accurate metadata
         const config = egressorSetup?.getCurrentConfig();
-        const declaration = config?.secrets.find(s => s.name === name);
-        await provider.storeSecret(
-            declaration ?? { name, type: 'bearer_token', target: '' },
-            { value },
-        );
+        const declaration = config?.secrets.find(s => s.name === name)
+            ?? { name, type: 'bearer_token' as const, target: '' };
+        // Use promptForSecret to collect the correct fields for the secret type
+        const fields = await promptForSecret(declaration);
+        if (!fields) { return; }
+        await provider.storeSecret(declaration, fields);
         vscode.window.showInformationMessage(`Secret '${name}' stored`);
     });
 
@@ -96,8 +96,12 @@ export function activate(context: vscode.ExtensionContext): void {
             vscode.window.showWarningMessage('Egressor: Extension not initialized');
             return;
         }
-        const name = await vscode.window.showInputBox({ prompt: 'Secret name to delete' });
+        const name = await vscode.window.showInputBox({ prompt: 'Secret name to delete (alphanumeric, hyphens, underscores)' });
         if (!name) { return; }
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            vscode.window.showErrorMessage('Secret name must contain only alphanumeric characters, hyphens, and underscores');
+            return;
+        }
         await provider.deleteSecret(name);
         vscode.window.showInformationMessage(`Secret '${name}' deleted`);
     });

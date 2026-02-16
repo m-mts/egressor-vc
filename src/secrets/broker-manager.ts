@@ -85,7 +85,7 @@ export class SecretlessBrokerManager implements vscode.Disposable {
 
     /** Emit a secret injection event to all listeners */
     private emitEvent(event: SecretInjectionEvent): void {
-        for (const listener of this.listeners) {
+        for (const listener of [...this.listeners]) {
             listener(event);
         }
     }
