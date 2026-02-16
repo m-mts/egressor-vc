@@ -58,7 +58,8 @@ export function generateHttpjailRules(config: ResolvedConfig): string {
     }
 
     const expressions = config.rules.map((rule, i) => {
-        const comment = rule.description ? ` // ${rule.description}` : '';
+        const safeDesc = rule.description ? rule.description.replace(/[\r\n\u2028\u2029]/g, ' ') : '';
+        const comment = safeDesc ? ` // ${safeDesc}` : '';
         const expr = ruleToExpression(rule);
         if (i === 0) {
             return `(${expr})${comment}`;

@@ -69,6 +69,7 @@ export class EgressorSetup implements vscode.Disposable {
 
     private containerContext: ContainerContext | undefined;
     private currentConfig: ResolvedConfig | undefined;
+    private suppressConfigCallback = false;
 
     constructor(options: SetupOptions) {
         this.context = options.context;
@@ -159,6 +160,7 @@ export class EgressorSetup implements vscode.Disposable {
 
             const callbacks: ConfigWatcherCallbacks = {
                 onConfigChanged: (config) => {
+                    if (this.suppressConfigCallback) { return; }
                     this.onConfigChanged(config).catch(err => {
                         this.outputChannel.appendLine(`Egressor: config reload failed: ${err}`);
                     });
@@ -177,9 +179,14 @@ export class EgressorSetup implements vscode.Disposable {
             }
             this.configWatcher.start();
 
+            // Suppress onConfigChanged during initial reload to avoid
+            // double-processing secrets (start() handles them directly)
+            this.suppressConfigCallback = true;
             const config = await this.configWatcher.reload();
+            this.suppressConfigCallback = false;
             if (!config) {
                 this.outputChannel.appendLine('Egressor: failed to load .egressor.yml');
+                await this.cleanupPartialStart();
                 this.state = 'error';
                 return false;
             }
@@ -210,6 +217,7 @@ export class EgressorSetup implements vscode.Disposable {
 
             if (!httpjailStarted) {
                 this.outputChannel.appendLine('Egressor: failed to start httpjail');
+                await this.cleanupPartialStart();
                 this.state = 'error';
                 return false;
             }
@@ -234,6 +242,7 @@ export class EgressorSetup implements vscode.Disposable {
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             this.outputChannel.appendLine(`Egressor: startup failed: ${message}`);
+            await this.cleanupPartialStart();
             this.state = 'error';
             return false;
         }
@@ -310,9 +319,11 @@ export class EgressorSetup implements vscode.Disposable {
             const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
             this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
 
+            const configFilePath = path.join(outputDir, 'secretless.yml');
             if (this.brokerManager.getState() === 'running') {
-                const configFilePath = path.join(outputDir, 'secretless.yml');
                 await this.brokerManager.restart({ configFilePath, secretsDir });
+            } else {
+                await this.brokerManager.start({ configFilePath, secretsDir });
             }
         } else {
             // Secrets removed from config - stop broker if running
@@ -349,6 +360,17 @@ export class EgressorSetup implements vscode.Disposable {
             });
         });
         this.disposables.push(secretSub);
+    }
+
+    /** Clean up resources allocated during a partial/failed start */
+    private async cleanupPartialStart(): Promise<void> {
+        this.configWatcher?.dispose();
+        this.configWatcher = undefined;
+        await this.sessionLogger.stop().catch(() => {});
+        for (const d of this.disposables) {
+            d.dispose();
+        }
+        this.disposables.length = 0;
     }
 
     dispose(): void {
