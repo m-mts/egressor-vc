@@ -83,7 +83,12 @@ export class CredentialProvider implements vscode.Disposable {
         if (!raw) {
             return undefined;
         }
-        return JSON.parse(raw) as SecretFields;
+        try {
+            return JSON.parse(raw) as SecretFields;
+        } catch {
+            this.outputChannel.appendLine(`Warning: corrupt secret data for '${name}', treating as missing`);
+            return undefined;
+        }
     }
 
     /**

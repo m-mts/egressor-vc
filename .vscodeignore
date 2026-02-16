@@ -10,6 +10,16 @@ tsconfig.json
 **/*.map
 **/*.ts
 !out/**/*.js
-node_modules/**
+node_modules/.package-lock.json
+node_modules/@types/**
+node_modules/@typescript-eslint/**
+node_modules/@vscode/**
+node_modules/eslint/**
+node_modules/mocha/**
+node_modules/nyc/**
+node_modules/sinon/**
+node_modules/ts-node/**
+node_modules/tsconfig-paths/**
+node_modules/typescript/**
 .egressor.yml
 docs/**

@@ -134,6 +134,44 @@ export class HttpjailManager implements vscode.Disposable {
                 stdio: ['ignore', 'pipe', 'pipe'],
             });
 
+            // Wait for a definitive spawn outcome before reporting success.
+            // 'spawn' fires when the OS successfully starts the process.
+            // 'error' fires on spawn failure (e.g. ENOENT).
+            // 'exit' fires if the process crashes immediately after spawning.
+            const spawnOk = await new Promise<boolean>((resolve) => {
+                let settled = false;
+                const settle = (ok: boolean) => {
+                    if (settled) { return; }
+                    settled = true;
+                    this.process?.removeListener('spawn', onSpawn);
+                    this.process?.removeListener('error', onError);
+                    this.process?.removeListener('exit', onExit);
+                    resolve(ok);
+                };
+                const onSpawn = () => {
+                    settle(true);
+                };
+                const onError = (err: Error) => {
+                    this.state = 'error';
+                    this.lastError = err.message;
+                    this.outputChannel.appendLine(`Failed to start httpjail: ${err.message}`);
+                    settle(false);
+                };
+                const onExit = (code: number | null, signal: string | null) => {
+                    this.state = 'error';
+                    this.lastError = `httpjail exited immediately (code: ${code}, signal: ${signal})`;
+                    this.outputChannel.appendLine(this.lastError);
+                    settle(false);
+                };
+                this.process!.once('spawn', onSpawn);
+                this.process!.once('error', onError);
+                this.process!.once('exit', onExit);
+            });
+
+            if (!spawnOk) {
+                return false;
+            }
+
             this.setupStreamHandlers();
 
             this.state = 'running';
@@ -287,8 +325,8 @@ export class HttpjailManager implements vscode.Disposable {
         }
 
         this.process.on('exit', (code, signal) => {
-            if (this.state === 'running') {
-                // Unexpected exit
+            if (this.state === 'running' || this.state === 'starting') {
+                // Unexpected exit (including immediate exit during startup)
                 this.state = 'error';
                 this.lastError = `httpjail exited unexpectedly (code: ${code}, signal: ${signal})`;
                 this.outputChannel.appendLine(this.lastError);

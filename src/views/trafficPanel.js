@@ -49,6 +49,7 @@ function init() {
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             state.events = [];
+            vscode.setState({ events: state.events });
             render();
         });
     }
@@ -64,6 +65,7 @@ function init() {
                 break;
             case 'clear':
                 state.events = [];
+                vscode.setState({ events: state.events });
                 render();
                 break;
         }
@@ -111,7 +113,7 @@ function matchesFilter(entry) {
     }
 
     if (method !== 'all' && entry.type === 'traffic') {
-        if (entry.method && entry.method.toUpperCase() !== method.toUpperCase()) return false;
+        if (!entry.method || entry.method.toUpperCase() !== method.toUpperCase()) return false;
     }
 
     return true;

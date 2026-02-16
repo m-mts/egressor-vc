@@ -9,6 +9,7 @@ import { ResolvedConfig } from './types';
 export interface ConfigWatcherCallbacks {
     onConfigChanged: (config: ResolvedConfig) => void;
     onConfigError: (errors: string[]) => void;
+    onConfigDeleted?: () => void;
 }
 
 /** Filesystem abstraction for testability */
@@ -38,6 +39,7 @@ export class ConfigWatcher implements vscode.Disposable {
     private secretsDir: string;
     private callbacks: ConfigWatcherCallbacks;
     private fs: FileSystem;
+    private deleteTimer: ReturnType<typeof setTimeout> | undefined;
 
     constructor(
         private workspaceRoot: string,
@@ -68,16 +70,18 @@ export class ConfigWatcher implements vscode.Disposable {
 
         this.disposables.push(
             this.watcher.onDidChange(() => {
+                this.cancelPendingDelete();
                 this.reload().catch(err => {
                     this.callbacks.onConfigError([`Config reload failed: ${err}`]);
                 });
             }),
             this.watcher.onDidCreate(() => {
+                this.cancelPendingDelete();
                 this.reload().catch(err => {
                     this.callbacks.onConfigError([`Config reload failed: ${err}`]);
                 });
             }),
-            this.watcher.onDidDelete(() => this.handleDelete()),
+            this.watcher.onDidDelete(() => this.scheduleDelete()),
             this.watcher
         );
     }
@@ -127,9 +131,26 @@ export class ConfigWatcher implements vscode.Disposable {
         }
     }
 
+    private scheduleDelete(): void {
+        this.cancelPendingDelete();
+        // Debounce delete to handle atomic-save flows (delete+recreate)
+        this.deleteTimer = setTimeout(() => {
+            this.deleteTimer = undefined;
+            this.handleDelete();
+        }, 500);
+    }
+
+    private cancelPendingDelete(): void {
+        if (this.deleteTimer !== undefined) {
+            clearTimeout(this.deleteTimer);
+            this.deleteTimer = undefined;
+        }
+    }
+
     private handleDelete(): void {
         this.currentConfig = undefined;
         this.callbacks.onConfigError(['.egressor.yml was deleted']);
+        this.callbacks.onConfigDeleted?.();
     }
 
     /** Get the current resolved config */
@@ -138,6 +159,7 @@ export class ConfigWatcher implements vscode.Disposable {
     }
 
     dispose(): void {
+        this.cancelPendingDelete();
         for (const d of this.disposables) {
             d.dispose();
         }

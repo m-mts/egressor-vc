@@ -131,8 +131,8 @@ export class EgressorSetup implements vscode.Disposable {
      * 7. Start session logger
      */
     async start(): Promise<boolean> {
-        if (this.state === 'running' || this.state === 'starting') {
-            this.outputChannel.appendLine('Egressor is already running or starting');
+        if (this.state === 'running' || this.state === 'starting' || this.state === 'stopping') {
+            this.outputChannel.appendLine('Egressor is already running, starting, or stopping');
             return this.state === 'running';
         }
 
@@ -170,6 +170,12 @@ export class EgressorSetup implements vscode.Disposable {
                     for (const err of errors) {
                         this.outputChannel.appendLine(`Egressor config error: ${err}`);
                     }
+                },
+                onConfigDeleted: () => {
+                    this.outputChannel.appendLine('Egressor: .egressor.yml deleted, stopping enforcement');
+                    this.stop().catch(err => {
+                        this.outputChannel.appendLine(`Egressor: stop after config delete failed: ${err}`);
+                    });
                 },
             };
 
@@ -219,6 +225,17 @@ export class EgressorSetup implements vscode.Disposable {
                 containerId: this.containerContext.containerId,
                 strongMode: this.containerContext.isContainer,
             });
+
+            // Check if stop() was called while we were starting (before treating
+            // a manager failure as an error - the failure may be due to intentional shutdown)
+            if (this.state !== 'starting') {
+                this.outputChannel.appendLine('Egressor: start cancelled (stop was called during startup)');
+                await this.cleanupPartialStart();
+                await this.httpjailManager.stop().catch(() => {});
+                await this.brokerManager.stop().catch(() => {});
+                this.state = 'idle';
+                return false;
+            }
 
             if (!httpjailStarted) {
                 this.outputChannel.appendLine('Egressor: failed to start httpjail');

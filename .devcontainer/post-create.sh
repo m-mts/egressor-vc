@@ -42,3 +42,4 @@ curl -fsSL https://claude.ai/install.sh | bash
 
 echo "Installing Codex..."
 npm i -g @openai/codex
+

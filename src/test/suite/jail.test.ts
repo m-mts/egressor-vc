@@ -268,6 +268,12 @@ suite('httpjail Manager', () => {
         });
         proc.stdout = new EventEmitter();
         proc.stderr = new EventEmitter();
+        // Simulate the 'spawn' event: emit on next tick after a listener is attached
+        proc.once('newListener', (event: string) => {
+            if (event === 'spawn') {
+                process.nextTick(() => proc.emit('spawn'));
+            }
+        });
         return proc;
     }
 
