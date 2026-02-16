@@ -5,7 +5,7 @@ import { ResolvedConfig, EgressRule } from './types';
  * Prevents injection of arbitrary JS via crafted host/path values.
  */
 function escapeJsString(s: string): string {
-    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
 /**

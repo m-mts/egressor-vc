@@ -70,6 +70,7 @@ export class EgressorSetup implements vscode.Disposable {
     private containerContext: ContainerContext | undefined;
     private currentConfig: ResolvedConfig | undefined;
     private suppressConfigCallback = false;
+    private disposed = false;
 
     constructor(options: SetupOptions) {
         this.context = options.context;
@@ -182,8 +183,12 @@ export class EgressorSetup implements vscode.Disposable {
             // Suppress onConfigChanged during initial reload to avoid
             // double-processing secrets (start() handles them directly)
             this.suppressConfigCallback = true;
-            const config = await this.configWatcher.reload();
-            this.suppressConfigCallback = false;
+            let config: ResolvedConfig | undefined;
+            try {
+                config = await this.configWatcher.reload();
+            } finally {
+                this.suppressConfigCallback = false;
+            }
             if (!config) {
                 this.outputChannel.appendLine('Egressor: failed to load .egressor.yml');
                 await this.cleanupPartialStart();
@@ -374,6 +379,9 @@ export class EgressorSetup implements vscode.Disposable {
     }
 
     dispose(): void {
+        if (this.disposed) { return; }
+        this.disposed = true;
+
         // Stop everything synchronously (best-effort)
         this.httpjailManager.dispose();
         this.brokerManager.dispose();

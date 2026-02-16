@@ -140,9 +140,13 @@ export class SessionLogger {
         }
         try {
             const content = await this.fsOps.readFile(this.logFilePath);
-            // JSONL format: each line is a JSON object
+            // JSONL format: each line is a JSON object; skip malformed lines
             const lines = content.trim().split('\n').filter(l => l.length > 0);
-            const entries = lines.map(line => JSON.parse(line));
+            const entries: unknown[] = [];
+            for (const line of lines) {
+                try { entries.push(JSON.parse(line)); }
+                catch { /* skip malformed line */ }
+            }
             return JSON.stringify(entries, null, 2);
         } catch {
             return '[]';

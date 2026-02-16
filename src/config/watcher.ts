@@ -67,8 +67,16 @@ export class ConfigWatcher implements vscode.Disposable {
         this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
 
         this.disposables.push(
-            this.watcher.onDidChange(() => { this.reload().catch(() => {}); }),
-            this.watcher.onDidCreate(() => { this.reload().catch(() => {}); }),
+            this.watcher.onDidChange(() => {
+                this.reload().catch(err => {
+                    this.callbacks.onConfigError([`Config reload failed: ${err}`]);
+                });
+            }),
+            this.watcher.onDidCreate(() => {
+                this.reload().catch(err => {
+                    this.callbacks.onConfigError([`Config reload failed: ${err}`]);
+                });
+            }),
             this.watcher.onDidDelete(() => this.handleDelete()),
             this.watcher
         );

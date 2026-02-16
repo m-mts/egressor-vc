@@ -122,6 +122,10 @@ function validateSecret(secret: unknown, index: number): ConfigValidationError[]
         errors.push({ field: `${prefix}.target`, message: 'target is required and must be a non-empty string' });
     }
 
+    if (s.type === 'ssh') {
+        errors.push({ field: `${prefix}.type`, message: 'ssh secret type is not yet supported; use bearer_token, header, basic_auth, postgresql, or mysql' });
+    }
+
     if (s.type === 'header' && (typeof s.headerName !== 'string' || s.headerName.trim() === '')) {
         errors.push({ field: `${prefix}.headerName`, message: 'headerName is required for header type secrets' });
     }
