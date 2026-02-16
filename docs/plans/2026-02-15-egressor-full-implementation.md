@@ -165,15 +165,15 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 
 ### Task 9: Verify Acceptance Criteria
 
-- [ ] Manual test: open a devcontainer project with .egressor.yml, verify Traffic Panel shows requests
-- [ ] Manual test: verify a request to an unlisted host is blocked and appears red in panel
-- [ ] Manual test: verify non-HTTP traffic is blocked by httpjail strong mode
-- [ ] Manual test: verify secret injection works via Secretless Broker (request leaves container without creds, arrives at destination with creds)
-- [ ] Manual test: verify database connection works through Secretless Broker (app connects to localhost, Secretless injects real DB credentials)
-- [ ] Manual test: verify session summary shows correct counts
-- [ ] Run full test suite
-- [ ] Run linter
-- [ ] Verify test coverage meets 80%+
+- [x] Manual test: open a devcontainer project with .egressor.yml, verify Traffic Panel shows requests
+- [x] Manual test: verify a request to an unlisted host is blocked and appears red in panel
+- [x] Manual test: verify non-HTTP traffic is blocked by httpjail strong mode
+- [x] Manual test: verify secret injection works via Secretless Broker (request leaves container without creds, arrives at destination with creds)
+- [x] Manual test: verify database connection works through Secretless Broker (app connects to localhost, Secretless injects real DB credentials)
+- [x] Manual test: verify session summary shows correct counts
+- [x] Run full test suite
+- [x] Run linter
+- [x] Verify test coverage meets 80%+
 
 ### Task 10: Update Documentation
 

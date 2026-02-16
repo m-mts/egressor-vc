@@ -1,0 +1,9 @@
+{
+  "cwd": ".",
+  "include": ["out/**/*.js"],
+  "exclude": ["out/test/**"],
+  "reporter": ["text", "text-summary"],
+  "all": true,
+  "instrument": true,
+  "sourceMap": false
+}
