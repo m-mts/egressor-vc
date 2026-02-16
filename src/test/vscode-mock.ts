@@ -36,6 +36,10 @@ const commands = {
     executeCommand: sinon.stub().resolves(undefined),
 };
 
+const env = {
+    remoteName: undefined as string | undefined,
+};
+
 const workspace = {
     getConfiguration: sinon.stub().returns({
         get: sinon.stub(),
@@ -135,6 +139,7 @@ export function resetMocks(): void {
 module.exports = {
     window,
     commands,
+    env,
     workspace,
     Uri,
     EventEmitter,

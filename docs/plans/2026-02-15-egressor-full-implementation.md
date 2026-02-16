@@ -155,13 +155,13 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Modify: `src/extension.ts` (wire everything together)
 - Create: `src/test/integration.test.ts`
 
-- [ ] Detect when a devcontainer opens (VS Code remote container context)
-- [ ] Orchestrate startup: parse .egressor.yml, generate httpjail rules + secretless.yml, start httpjail with --docker-run targeting the container, start Secretless Broker
-- [ ] Configure container networking to route through httpjail (handled by httpjail's --docker-run flag and strong mode nftables rules)
-- [ ] Wire all components together in extension.ts: config -> httpjail -> secretless broker -> views -> audit
-- [ ] Implement graceful shutdown: stop httpjail process, stop Secretless Broker, flush audit log
-- [ ] Write integration tests: full lifecycle from activation through request proxying
-- [ ] Run project test suite - must pass before task 9
+- [x] Detect when a devcontainer opens (VS Code remote container context)
+- [x] Orchestrate startup: parse .egressor.yml, generate httpjail rules + secretless.yml, start httpjail with --docker-run targeting the container, start Secretless Broker
+- [x] Configure container networking to route through httpjail (handled by httpjail's --docker-run flag and strong mode nftables rules)
+- [x] Wire all components together in extension.ts: config -> httpjail -> secretless broker -> views -> audit
+- [x] Implement graceful shutdown: stop httpjail process, stop Secretless Broker, flush audit log
+- [x] Write integration tests: full lifecycle from activation through request proxying
+- [x] Run project test suite - must pass before task 9
 
 ### Task 9: Verify Acceptance Criteria
 

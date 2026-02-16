@@ -6,16 +6,63 @@ import { activate, deactivate } from '../../extension';
 // Type helper for sinon stubs on the vscode mock
 type StubFn = sinon.SinonStub;
 
+function ensureVscodeMocks(sandbox: sinon.SinonSandbox): void {
+    const createSBI = vscode.window.createStatusBarItem as unknown as sinon.SinonStub;
+    if (createSBI && typeof createSBI.callsFake === 'function') {
+        createSBI.callsFake(() => ({
+            text: '',
+            tooltip: '',
+            command: undefined as string | undefined,
+            backgroundColor: undefined as unknown,
+            show: sandbox.stub(),
+            hide: sandbox.stub(),
+            dispose: sandbox.stub(),
+        }));
+    }
+    const createDC = vscode.languages.createDiagnosticCollection as unknown as sinon.SinonStub;
+    if (createDC && typeof createDC.returns === 'function') {
+        createDC.returns({
+            set: sandbox.stub(),
+            delete: sandbox.stub(),
+            clear: sandbox.stub(),
+            dispose: sandbox.stub(),
+        });
+    }
+    const regWV = vscode.window.registerWebviewViewProvider as unknown as sinon.SinonStub;
+    if (regWV && typeof regWV.returns === 'function') {
+        regWV.returns({ dispose: sandbox.stub() });
+    }
+}
+
+function createMockContext(sandbox: sinon.SinonSandbox): vscode.ExtensionContext {
+    return {
+        subscriptions: [],
+        globalStorageUri: vscode.Uri.file('/tmp/egressor-test-storage'),
+        extensionUri: vscode.Uri.file('/tmp/egressor-extension'),
+        secrets: {
+            get: sandbox.stub().resolves(undefined),
+            store: sandbox.stub().resolves(),
+            delete: sandbox.stub().resolves(),
+            onDidChange: sandbox.stub(),
+        },
+        globalState: {
+            get: sandbox.stub().returns([]),
+            update: sandbox.stub().resolves(),
+        },
+    } as unknown as vscode.ExtensionContext;
+}
+
 suite('Extension Test Suite', () => {
     let sandbox: sinon.SinonSandbox;
 
     setup(() => {
         sandbox = sinon.createSandbox();
+        ensureVscodeMocks(sandbox);
     });
 
     teardown(() => {
+        deactivate();
         sandbox.restore();
-        sinon.reset();
     });
 
     test('activate creates output channel and registers commands', () => {
@@ -30,11 +77,7 @@ suite('Extension Test Suite', () => {
         (vscode.window.createOutputChannel as unknown as StubFn).returns(fakeOutputChannel);
         (vscode.commands.registerCommand as unknown as StubFn).returns(fakeDisposable);
 
-        const disposables: { dispose(): void }[] = [];
-        const context = {
-            subscriptions: disposables,
-            globalStorageUri: vscode.Uri.file('/tmp/egressor-test-storage'),
-        } as unknown as vscode.ExtensionContext;
+        const context = createMockContext(sandbox);
 
         activate(context);
 
@@ -57,6 +100,7 @@ suite('Extension Test Suite', () => {
         assert.ok(commandNames.includes('egressor.start'), 'Should register egressor.start');
         assert.ok(commandNames.includes('egressor.stop'), 'Should register egressor.stop');
 
+        const disposables = context.subscriptions;
         assert.ok(disposables.length >= 5, `Expected at least 5 disposables, got ${disposables.length}`);
     });
 
@@ -74,10 +118,7 @@ suite('Extension Test Suite', () => {
         });
         (vscode.commands.registerCommand as unknown as StubFn).returns({ dispose: sandbox.stub() });
 
-        const context = {
-            subscriptions: [],
-            globalStorageUri: vscode.Uri.file('/tmp/egressor-test-storage'),
-        } as unknown as vscode.ExtensionContext;
+        const context = createMockContext(sandbox);
         activate(context);
 
         assert.ok(appendLine.called, 'appendLine should be called');

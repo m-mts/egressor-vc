@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { SessionLogger } from './audit/logger';
+import { EgressorSetup } from './container/setup';
+import { shouldAutoStart } from './container/detector';
+import { TrafficPanelProvider } from './views/trafficPanel';
 import { generateSessionSummary, formatSessionSummary } from './audit/summary';
 
-let sessionLogger: SessionLogger | undefined;
+let egressorSetup: EgressorSetup | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
     const outputChannel = vscode.window.createOutputChannel('Egressor');
@@ -11,33 +12,41 @@ export function activate(context: vscode.ExtensionContext): void {
 
     outputChannel.appendLine('Egressor extension activated');
 
-    // Initialize session logger
-    const logDir = path.join(context.globalStorageUri.fsPath, 'audit-logs');
-    sessionLogger = new SessionLogger({ logDir });
-    sessionLogger.start().then(
-        () => outputChannel.appendLine('Egressor: audit logger started'),
-        (err) => outputChannel.appendLine(`Egressor: audit logger failed to start: ${err}`),
-    );
+    // Create the orchestrator
+    egressorSetup = new EgressorSetup({ context, outputChannel });
 
-    const startCmd = vscode.commands.registerCommand('egressor.start', () => {
+    // Register the traffic panel webview provider
+    const trafficPanelRegistration = vscode.window.registerWebviewViewProvider(
+        TrafficPanelProvider.viewType,
+        egressorSetup.getTrafficPanel(),
+    );
+    context.subscriptions.push(trafficPanelRegistration);
+
+    // Register commands
+    const startCmd = vscode.commands.registerCommand('egressor.start', async () => {
         outputChannel.appendLine('Egressor: start command invoked');
-        vscode.window.showInformationMessage('Egressor started');
+        if (egressorSetup) {
+            await egressorSetup.start();
+        }
     });
 
-    const stopCmd = vscode.commands.registerCommand('egressor.stop', () => {
+    const stopCmd = vscode.commands.registerCommand('egressor.stop', async () => {
         outputChannel.appendLine('Egressor: stop command invoked');
-        vscode.window.showInformationMessage('Egressor stopped');
+        if (egressorSetup) {
+            await egressorSetup.stop();
+        }
     });
 
     const showSummaryCmd = vscode.commands.registerCommand('egressor.showSessionSummary', () => {
-        if (!sessionLogger) {
+        const logger = egressorSetup?.getSessionLogger();
+        if (!logger) {
             vscode.window.showWarningMessage('Egressor: No active session');
             return;
         }
-        const entries = sessionLogger.getEntries();
+        const entries = logger.getEntries();
         const summary = generateSessionSummary(
             entries,
-            sessionLogger.getSessionStart(),
+            logger.getSessionStart(),
             new Date(),
         );
         const formatted = formatSessionSummary(summary);
@@ -47,22 +56,35 @@ export function activate(context: vscode.ExtensionContext): void {
     });
 
     const exportLogCmd = vscode.commands.registerCommand('egressor.exportSessionLog', async () => {
-        if (!sessionLogger) {
+        const logger = egressorSetup?.getSessionLogger();
+        if (!logger) {
             vscode.window.showWarningMessage('Egressor: No active session');
             return;
         }
-        const exportData = await sessionLogger.exportLog();
+        const exportData = await logger.exportLog();
         const doc = await vscode.workspace.openTextDocument({ content: exportData, language: 'json' });
         await vscode.window.showTextDocument(doc);
     });
 
     context.subscriptions.push(startCmd, stopCmd, showSummaryCmd, exportLogCmd);
+    context.subscriptions.push(egressorSetup);
+
+    // Auto-start if in container with .egressor.yml and autoStart enabled
+    if (shouldAutoStart()) {
+        outputChannel.appendLine('Egressor: auto-starting (devcontainer detected with .egressor.yml)');
+        egressorSetup.start().catch(err => {
+            outputChannel.appendLine(`Egressor: auto-start failed: ${err}`);
+        });
+    }
 }
 
-export function getSessionLogger(): SessionLogger | undefined {
-    return sessionLogger;
+export function getEgressorSetup(): EgressorSetup | undefined {
+    return egressorSetup;
 }
 
 export function deactivate(): void {
-    sessionLogger = undefined;
+    if (egressorSetup) {
+        egressorSetup.dispose();
+        egressorSetup = undefined;
+    }
 }
