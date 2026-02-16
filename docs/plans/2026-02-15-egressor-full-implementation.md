@@ -124,12 +124,12 @@ Implement Egressor, a VS Code extension that provides traffic visibility, egress
 - Create: `src/views/diagnostics.ts` (VS Code diagnostics for blocked requests)
 - Create: `src/test/statusBar.test.ts`
 
-- [ ] Implement status bar item showing live stats (requests allowed / blocked count)
-- [ ] Implement VS Code diagnostics that surface blocked requests as warnings
-- [ ] Add click handler on status bar to open Traffic Panel
-- [ ] Wire status bar and diagnostics to traffic events from httpjail
-- [ ] Write tests: status bar updates, diagnostic creation for blocked requests
-- [ ] Run project test suite - must pass before task 7
+- [x] Implement status bar item showing live stats (requests allowed / blocked count)
+- [x] Implement VS Code diagnostics that surface blocked requests as warnings
+- [x] Add click handler on status bar to open Traffic Panel
+- [x] Wire status bar and diagnostics to traffic events from httpjail
+- [x] Write tests: status bar updates, diagnostic creation for blocked requests
+- [x] Run project test suite - must pass before task 7
 
 ### Task 7: Audit Trail and Session Logging
 

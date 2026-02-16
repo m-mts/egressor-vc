@@ -3,6 +3,18 @@ import * as sinon from 'sinon';
 
 const disposable = { dispose: () => {} };
 
+function createMockStatusBarItem() {
+    return {
+        text: '',
+        tooltip: '',
+        command: undefined as string | undefined,
+        backgroundColor: undefined as unknown,
+        show: sinon.stub(),
+        hide: sinon.stub(),
+        dispose: sinon.stub(),
+    };
+}
+
 const window = {
     createOutputChannel: sinon.stub().returns({
         appendLine: sinon.stub(),
@@ -16,6 +28,7 @@ const window = {
     showInputBox: sinon.stub().resolves(undefined),
     showQuickPick: sinon.stub().resolves(undefined),
     registerWebviewViewProvider: sinon.stub().returns(disposable),
+    createStatusBarItem: sinon.stub().callsFake(() => createMockStatusBarItem()),
 };
 
 const commands = {
@@ -78,6 +91,34 @@ const languages = {
     }),
 };
 
+const Range = class {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+    constructor(startLine: number, startChar: number, endLine: number, endChar: number) {
+        this.start = { line: startLine, character: startChar };
+        this.end = { line: endLine, character: endChar };
+    }
+};
+
+const Diagnostic = class {
+    range: InstanceType<typeof Range>;
+    message: string;
+    severity: number;
+    source?: string;
+    constructor(range: InstanceType<typeof Range>, message: string, severity?: number) {
+        this.range = range;
+        this.message = message;
+        this.severity = severity ?? 0;
+    }
+};
+
+const ThemeColor = class {
+    id: string;
+    constructor(id: string) {
+        this.id = id;
+    }
+};
+
 const RelativePattern = class {
     base: string;
     pattern: string;
@@ -100,6 +141,9 @@ module.exports = {
     DiagnosticSeverity,
     StatusBarAlignment,
     languages,
+    Range,
+    Diagnostic,
+    ThemeColor,
     RelativePattern,
     resetMocks,
 };
