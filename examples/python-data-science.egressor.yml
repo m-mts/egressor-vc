@@ -1,0 +1,33 @@
+# Egressor config for a Python data science project
+# Allows package managers and common data APIs
+
+version: "1.0"
+
+presets:
+  - python-data-science
+
+rules:
+  # AWS S3 for data lake access
+  - host: "*.s3.amazonaws.com"
+    methods: [GET, PUT]
+    description: AWS S3 data lake
+
+  # Hugging Face for ML models
+  - host: huggingface.co
+    methods: [GET]
+    description: Hugging Face model hub
+
+  - host: "*.huggingface.co"
+    methods: [GET]
+    description: Hugging Face CDN
+
+secrets:
+  - name: aws_token
+    type: bearer_token
+    target: "*.s3.amazonaws.com"
+    description: AWS access token
+
+  - name: hf_token
+    type: bearer_token
+    target: huggingface.co
+    description: Hugging Face API token

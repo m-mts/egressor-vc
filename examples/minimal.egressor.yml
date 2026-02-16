@@ -1,0 +1,10 @@
+# Minimal Egressor config
+# Blocks all traffic except explicitly listed hosts
+
+version: "1.0"
+
+rules:
+  - host: registry.npmjs.org
+    description: npm registry
+  - host: github.com
+    description: GitHub

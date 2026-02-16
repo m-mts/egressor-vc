@@ -1,0 +1,30 @@
+# Egressor config for a Node.js full-stack application
+# Uses the node-fullstack preset for common registries + custom API rules
+
+version: "1.0"
+
+presets:
+  - node-fullstack
+
+rules:
+  # Application-specific APIs
+  - host: api.stripe.com
+    methods: [GET, POST]
+    description: Stripe payment API
+
+  - host: api.sendgrid.com
+    methods: [POST]
+    paths: [/v3/mail]
+    description: SendGrid email API
+
+secrets:
+  - name: stripe_api_key
+    type: bearer_token
+    target: api.stripe.com
+    description: Stripe API secret key
+
+  - name: sendgrid_key
+    type: header
+    target: api.sendgrid.com
+    headerName: Authorization
+    description: SendGrid API key

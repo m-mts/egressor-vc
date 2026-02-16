@@ -1,0 +1,50 @@
+# Egressor config for a microservices project with database access
+# Demonstrates database secret injection and internal API rules
+
+version: "1.0"
+
+presets:
+  - node-fullstack
+
+rules:
+  # Internal microservices
+  - host: auth-service.internal.company.com
+    methods: [GET, POST]
+    paths: [/api/v1]
+    description: Authentication service
+
+  - host: user-service.internal.company.com
+    methods: [GET, POST, PUT, DELETE]
+    paths: [/api/v2]
+    description: User management service
+
+  # External APIs
+  - host: api.twilio.com
+    methods: [POST]
+    description: Twilio messaging
+
+secrets:
+  # PostgreSQL database (app connects to localhost:5433)
+  - name: postgres_main
+    type: postgresql
+    target: db.internal.company.com
+    listenPort: 5433
+    description: Main PostgreSQL database
+
+  # MySQL database (app connects to localhost:3307)
+  - name: mysql_analytics
+    type: mysql
+    target: analytics-db.internal.company.com
+    listenPort: 3307
+    description: Analytics MySQL database
+
+  # API authentication
+  - name: internal_auth
+    type: bearer_token
+    target: auth-service.internal.company.com
+    description: Internal service auth token
+
+  - name: twilio_key
+    type: basic_auth
+    target: api.twilio.com
+    description: Twilio API credentials
