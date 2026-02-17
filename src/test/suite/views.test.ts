@@ -6,6 +6,7 @@ import {
     serializeTrafficEvent,
     serializeSecretEvent,
     FsReadOps,
+    HealthCheckDeps,
 } from '../../views/trafficPanel';
 import { TrafficEvent } from '../../jail/types';
 import { SecretInjectionEvent } from '../../secrets/types';
@@ -413,5 +414,223 @@ suite('Traffic Event Serialization', () => {
         assert.strictEqual(serialized.secretName, 'prod-db');
         assert.strictEqual(serialized.secretType, 'postgresql');
         assert.strictEqual(serialized.target, 'db.example.com:5432');
+    });
+});
+
+// --- Health Check Tests ---
+
+suite('TrafficPanelProvider Health Check', () => {
+    let sandbox: sinon.SinonSandbox;
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
+    function createHealthCheckDeps(overrides?: Partial<HealthCheckDeps>): HealthCheckDeps {
+        return {
+            detectHttpjailFn: () => ({ found: true, path: '/usr/bin/httpjail' }),
+            detectBrokerBinaryFn: () => ({ found: true, path: '/usr/bin/secretless-broker' }),
+            showWarningMessage: sandbox.stub().resolves(undefined) as unknown as typeof vscode.window.showWarningMessage,
+            showInformationMessage: sandbox.stub().resolves(undefined) as unknown as typeof vscode.window.showInformationMessage,
+            executeCommand: sandbox.stub().resolves(undefined) as unknown as typeof vscode.commands.executeCommand,
+            hasSecretsConfig: () => false,
+            ...overrides,
+        };
+    }
+
+    test('shows warning when httpjail is not found', async () => {
+        const showWarning = sandbox.stub().resolves(undefined);
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: false }),
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        assert.ok(showWarning.calledWith(
+            'httpjail is not installed. Traffic monitoring requires httpjail.',
+            'View Setup Guide'
+        ));
+    });
+
+    test('opens httpjail docs when user clicks View Setup Guide', async () => {
+        const showWarning = sandbox.stub().resolves('View Setup Guide');
+        const execCmd = sandbox.stub().resolves(undefined);
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: false }),
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+            executeCommand: execCmd as unknown as typeof vscode.commands.executeCommand,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        assert.ok(execCmd.calledOnce || execCmd.callCount >= 1);
+        const firstCall = execCmd.getCalls().find((c: sinon.SinonSpyCall) => c.args[0] === 'markdown.showPreview');
+        assert.ok(firstCall, 'Should call markdown.showPreview');
+        assert.ok(firstCall!.args[1].path.includes('httpjail-rules.md'));
+    });
+
+    test('shows info when httpjail is installed but not running', async () => {
+        const showInfo = sandbox.stub().resolves(undefined);
+        const mockManager = { getState: () => 'stopped' } as unknown as import('../../jail/manager').HttpjailManager;
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: true, path: '/usr/bin/httpjail' }),
+            httpjailManager: mockManager,
+            showInformationMessage: showInfo as unknown as typeof vscode.window.showInformationMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        assert.ok(showInfo.calledWith(
+            'httpjail is installed but not running. Run "Egressor: Start" to begin traffic monitoring.',
+        ));
+    });
+
+    test('no httpjail notification when installed and running', async () => {
+        const showWarning = sandbox.stub().resolves(undefined);
+        const showInfo = sandbox.stub().resolves(undefined);
+        const mockManager = { getState: () => 'running' } as unknown as import('../../jail/manager').HttpjailManager;
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: true, path: '/usr/bin/httpjail' }),
+            httpjailManager: mockManager,
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+            showInformationMessage: showInfo as unknown as typeof vscode.window.showInformationMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        // Warning should not be called for httpjail (only possibly for broker)
+        for (const call of showWarning.getCalls()) {
+            assert.ok(!call.args[0].includes('httpjail'), 'No httpjail warning when installed and running');
+        }
+        for (const call of showInfo.getCalls()) {
+            assert.ok(!call.args[0].includes('httpjail'), 'No httpjail info when running');
+        }
+    });
+
+    test('shows warning when secretless-broker is not found', async () => {
+        const showWarning = sandbox.stub().resolves(undefined);
+        const deps = createHealthCheckDeps({
+            detectBrokerBinaryFn: () => ({ found: false }),
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        const brokerCall = showWarning.getCalls().find(
+            (c: sinon.SinonSpyCall) => (c.args[0] as string).includes('Secretless Broker')
+        );
+        assert.ok(brokerCall, 'Should show warning for missing secretless-broker');
+    });
+
+    test('opens broker docs when user clicks View Setup Guide', async () => {
+        const showWarning = sandbox.stub().resolves('View Setup Guide');
+        const execCmd = sandbox.stub().resolves(undefined);
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: true, path: '/usr/bin/httpjail' }),
+            detectBrokerBinaryFn: () => ({ found: false }),
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+            executeCommand: execCmd as unknown as typeof vscode.commands.executeCommand,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        const previewCall = execCmd.getCalls().find(
+            (c: sinon.SinonSpyCall) => c.args[0] === 'markdown.showPreview' && c.args[1].path.includes('secretless-broker.md')
+        );
+        assert.ok(previewCall, 'Should open secretless-broker docs');
+    });
+
+    test('shows info when broker is installed but not running and secrets configured', async () => {
+        const showInfo = sandbox.stub().resolves(undefined);
+        const mockBroker = { getState: () => 'stopped' } as unknown as import('../../secrets/broker-manager').SecretlessBrokerManager;
+        const deps = createHealthCheckDeps({
+            detectBrokerBinaryFn: () => ({ found: true, path: '/usr/bin/secretless-broker' }),
+            brokerManager: mockBroker,
+            hasSecretsConfig: () => true,
+            showInformationMessage: showInfo as unknown as typeof vscode.window.showInformationMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        const brokerCall = showInfo.getCalls().find(
+            (c: sinon.SinonSpyCall) => (c.args[0] as string).includes('Secretless Broker')
+        );
+        assert.ok(brokerCall, 'Should show info for stopped broker with secrets config');
+    });
+
+    test('no broker info notification when no secrets configured', async () => {
+        const showInfo = sandbox.stub().resolves(undefined);
+        const mockBroker = { getState: () => 'stopped' } as unknown as import('../../secrets/broker-manager').SecretlessBrokerManager;
+        const deps = createHealthCheckDeps({
+            detectBrokerBinaryFn: () => ({ found: true, path: '/usr/bin/secretless-broker' }),
+            brokerManager: mockBroker,
+            hasSecretsConfig: () => false,
+            showInformationMessage: showInfo as unknown as typeof vscode.window.showInformationMessage,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+
+        await provider.runDependencyHealthCheck();
+
+        for (const call of showInfo.getCalls()) {
+            assert.ok(!(call.args[0] as string).includes('Secretless Broker'), 'No broker info when no secrets configured');
+        }
+    });
+
+    test('setHealthCheckDeps updates deps used by health check', async () => {
+        const showWarning = sandbox.stub().resolves(undefined);
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps());
+
+        // Initially no deps set, use default detection (would call real detectHttpjail)
+        // Override with setHealthCheckDeps
+        provider.setHealthCheckDeps(createHealthCheckDeps({
+            detectHttpjailFn: () => ({ found: false }),
+            showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+        }));
+
+        await provider.runDependencyHealthCheck();
+
+        assert.ok(showWarning.calledWith(
+            'httpjail is not installed. Traffic monitoring requires httpjail.',
+            'View Setup Guide'
+        ));
+    });
+
+    test('resolveWebviewView triggers health check', () => {
+        const detectFn = sandbox.stub().returns({ found: true, path: '/usr/bin/httpjail' });
+        const detectBrokerFn = sandbox.stub().returns({ found: true, path: '/usr/bin/secretless-broker' });
+        const deps = createHealthCheckDeps({
+            detectHttpjailFn: detectFn,
+            detectBrokerBinaryFn: detectBrokerFn,
+        });
+        const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        // Health check is async but should have been called
+        // Give the microtask queue a tick to process
+        return new Promise<void>((resolve) => {
+            setTimeout(() => {
+                assert.ok(detectFn.calledOnce, 'detectHttpjail should be called during resolveWebviewView');
+                assert.ok(detectBrokerFn.calledOnce, 'detectBrokerBinary should be called during resolveWebviewView');
+                resolve();
+            }, 10);
+        });
     });
 });

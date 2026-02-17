@@ -50,15 +50,15 @@ When resolveWebviewView fires (panel opened), check:
 
 If not installed or not running, show a warning notification with a "View Setup Guide" button that opens the relevant doc file.
 
-- [ ] Give TrafficPanelProvider access to HttpjailManager and SecretlessBrokerManager (pass via constructor or a callback)
-- [ ] In resolveWebviewView, after setting up the webview, call an async check method
-- [ ] Check httpjail: call detectHttpjail(). If not found, show warning with button to open docs/httpjail-rules.md. If found but manager state is not 'running', show info notification suggesting to run "Egressor: Start"
-- [ ] Check secretless-broker: call detectBrokerBinary(). If not found, show warning with button to open docs/secretless-broker.md. If found but manager state is not 'running' and config has secrets, show info notification
-- [ ] When user clicks "View Setup Guide", use vscode.commands.executeCommand('markdown.showPreview', docUri) to open the doc
-- [ ] Update EgressorSetup to pass the managers to TrafficPanelProvider
-- [ ] Update extension.ts if constructor changes require it
-- [ ] Write tests for the health check logic
-- [ ] Run project test suite - must pass before task 3
+- [x] Give TrafficPanelProvider access to HttpjailManager and SecretlessBrokerManager (pass via constructor or a callback)
+- [x] In resolveWebviewView, after setting up the webview, call an async check method
+- [x] Check httpjail: call detectHttpjail(). If not found, show warning with button to open docs/httpjail-rules.md. If found but manager state is not 'running', show info notification suggesting to run "Egressor: Start"
+- [x] Check secretless-broker: call detectBrokerBinary(). If not found, show warning with button to open docs/secretless-broker.md. If found but manager state is not 'running' and config has secrets, show info notification
+- [x] When user clicks "View Setup Guide", use vscode.commands.executeCommand('markdown.showPreview', docUri) to open the doc
+- [x] Update EgressorSetup to pass the managers to TrafficPanelProvider
+- [x] Update extension.ts if constructor changes require it
+- [x] Write tests for the health check logic
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: Verify acceptance criteria
 

@@ -90,6 +90,13 @@ export class EgressorSetup implements vscode.Disposable {
         this.diagnostics = options.diagnostics ?? new DiagnosticsManager();
         this.trafficPanel = options.trafficPanel ?? new TrafficPanelProvider(options.context.extensionUri);
 
+        // Wire health check dependencies so the traffic panel can check binary availability
+        this.trafficPanel.setHealthCheckDeps({
+            httpjailManager: this.httpjailManager,
+            brokerManager: this.brokerManager,
+            hasSecretsConfig: () => (this.currentConfig?.secrets.length ?? 0) > 0,
+        });
+
         if (options.configWatcher) {
             this.configWatcher = options.configWatcher;
         }
