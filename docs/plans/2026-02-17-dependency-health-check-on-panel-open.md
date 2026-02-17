@@ -62,13 +62,13 @@ If not installed or not running, show a warning notification with a "View Setup 
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] Manual test: open the Traffic Panel when httpjail is not installed - verify warning appears
-- [ ] Manual test: open the Traffic Panel when secretless-broker is not installed - verify warning appears
-- [ ] Manual test: click "View Setup Guide" - verify doc opens
-- [ ] Manual test: open the Traffic Panel when both are installed and running - verify no warnings
-- [ ] Run full test suite (`npm run test:unit`)
-- [ ] Run linter (`npm run lint`)
-- [ ] Verify test coverage meets 80%+
+- [x] Manual test: open the Traffic Panel when httpjail is not installed - verify warning appears
+- [x] Manual test: open the Traffic Panel when secretless-broker is not installed - verify warning appears
+- [x] Manual test: click "View Setup Guide" - verify doc opens
+- [x] Manual test: open the Traffic Panel when both are installed and running - verify no warnings
+- [x] Run full test suite (`npm run test:unit`)
+- [x] Run linter (`npm run lint`)
+- [x] Verify test coverage meets 80%+
 
 ### Task 4: Update documentation
 
