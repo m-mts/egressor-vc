@@ -3,9 +3,11 @@ import {
     EgressorConfig,
     EgressRule,
     SecretDeclaration,
+    ContainerConfig,
     ConfigParseResult,
     ConfigValidationError,
     ResolvedConfig,
+    ResolvedContainerConfig,
     HttpMethod,
     SecretType,
     PresetName,
@@ -137,6 +139,92 @@ function validateSecret(secret: unknown, index: number): ConfigValidationError[]
     return errors;
 }
 
+function validateContainerMatch(match: unknown, prefix: string): ConfigValidationError[] {
+    const errors: ConfigValidationError[] = [];
+
+    if (typeof match !== 'object' || match === null) {
+        errors.push({ field: `${prefix}.match`, message: 'match must be an object' });
+        return errors;
+    }
+
+    const m = match as Record<string, unknown>;
+
+    if (m.name !== undefined && typeof m.name !== 'string') {
+        errors.push({ field: `${prefix}.match.name`, message: 'match.name must be a string' });
+    }
+
+    if (m.image !== undefined && typeof m.image !== 'string') {
+        errors.push({ field: `${prefix}.match.image`, message: 'match.image must be a string' });
+    }
+
+    if (m.label !== undefined) {
+        if (typeof m.label !== 'object' || m.label === null || Array.isArray(m.label)) {
+            errors.push({ field: `${prefix}.match.label`, message: 'match.label must be an object of key-value pairs' });
+        } else {
+            for (const [key, val] of Object.entries(m.label as Record<string, unknown>)) {
+                if (typeof val !== 'string') {
+                    errors.push({ field: `${prefix}.match.label.${key}`, message: 'label values must be strings' });
+                }
+            }
+        }
+    }
+
+    // At least one match criterion must be specified
+    if (m.name === undefined && m.image === undefined && m.label === undefined) {
+        errors.push({ field: `${prefix}.match`, message: 'match must specify at least one criterion (name, image, or label)' });
+    }
+
+    return errors;
+}
+
+function validateContainerConfig(container: unknown, index: number): ConfigValidationError[] {
+    const errors: ConfigValidationError[] = [];
+    const prefix = `containers[${index}]`;
+
+    if (typeof container !== 'object' || container === null) {
+        errors.push({ field: prefix, message: 'Container config must be an object' });
+        return errors;
+    }
+
+    const c = container as Record<string, unknown>;
+
+    if (typeof c.name !== 'string' || c.name.trim() === '') {
+        errors.push({ field: `${prefix}.name`, message: 'name is required and must be a non-empty string' });
+    }
+
+    errors.push(...validateContainerMatch(c.match, prefix));
+
+    // Validate egress field
+    if (c.egress !== undefined && typeof c.egress !== 'boolean') {
+        if (!Array.isArray(c.egress)) {
+            errors.push({ field: `${prefix}.egress`, message: 'egress must be a boolean or an array of rules' });
+        } else {
+            for (let i = 0; i < c.egress.length; i++) {
+                errors.push(...validateRule(c.egress[i], i).map(e => ({
+                    field: e.field.replace(/^rules/, `${prefix}.egress`),
+                    message: e.message,
+                })));
+            }
+        }
+    }
+
+    // Validate secrets field
+    if (c.secrets !== undefined && typeof c.secrets !== 'boolean') {
+        if (!Array.isArray(c.secrets)) {
+            errors.push({ field: `${prefix}.secrets`, message: 'secrets must be a boolean or an array of secret declarations' });
+        } else {
+            for (let i = 0; i < c.secrets.length; i++) {
+                errors.push(...validateSecret(c.secrets[i], i).map(e => ({
+                    field: e.field.replace(/^secrets/, `${prefix}.secrets`),
+                    message: e.message,
+                })));
+            }
+        }
+    }
+
+    return errors;
+}
+
 /** Parse raw YAML string into an EgressorConfig with validation */
 export function parseConfig(yamlContent: string): ConfigParseResult {
     const errors: ConfigValidationError[] = [];
@@ -192,6 +280,17 @@ export function parseConfig(yamlContent: string): ConfigParseResult {
         }
     }
 
+    // Containers (optional)
+    if (doc.containers !== undefined) {
+        if (!Array.isArray(doc.containers)) {
+            errors.push({ field: 'containers', message: 'containers must be an array' });
+        } else {
+            for (let i = 0; i < doc.containers.length; i++) {
+                errors.push(...validateContainerConfig(doc.containers[i], i));
+            }
+        }
+    }
+
     if (errors.length > 0) {
         return { ok: false, errors };
     }
@@ -203,6 +302,7 @@ export function parseConfig(yamlContent: string): ConfigParseResult {
             presets: doc.presets as PresetName[] | undefined,
             rules: doc.rules as EgressRule[],
             secrets: doc.secrets as SecretDeclaration[] | undefined,
+            containers: doc.containers as ContainerConfig[] | undefined,
         },
     };
 }
@@ -238,10 +338,42 @@ export function resolveConfig(config: EgressorConfig): ResolvedConfig {
         }
     }
 
+    // Resolve per-container configs
+    const resolvedContainers: ResolvedContainerConfig[] = [];
+    if (config.containers) {
+        for (const container of config.containers) {
+            let containerRules: EgressRule[];
+            if (container.egress === true) {
+                containerRules = mergedRules;
+            } else if (Array.isArray(container.egress)) {
+                containerRules = container.egress;
+            } else {
+                containerRules = [];
+            }
+
+            let containerSecrets: SecretDeclaration[];
+            if (container.secrets === true) {
+                containerSecrets = config.secrets ?? [];
+            } else if (Array.isArray(container.secrets)) {
+                containerSecrets = container.secrets;
+            } else {
+                containerSecrets = [];
+            }
+
+            resolvedContainers.push({
+                name: container.name,
+                match: container.match,
+                rules: containerRules,
+                secrets: containerSecrets,
+            });
+        }
+    }
+
     return {
         version: config.version,
         rules: mergedRules,
         secrets: config.secrets ?? [],
+        containers: resolvedContainers,
     };
 }
 

@@ -44,6 +44,28 @@ export type PresetName =
     | 'go-standard'
     | 'web-frontend';
 
+/** Match criteria for identifying which Docker container a ContainerConfig applies to */
+export interface ContainerMatch {
+    /** Match by container name (exact or glob) */
+    name?: string;
+    /** Match by container image (exact or glob) */
+    image?: string;
+    /** Match by container labels (all specified labels must match) */
+    label?: Record<string, string>;
+}
+
+/** Per-container configuration for egress and secrets */
+export interface ContainerConfig {
+    /** Human-readable name for this container config */
+    name: string;
+    /** Criteria for matching a discovered container */
+    match: ContainerMatch;
+    /** Egress config: true inherits top-level rules, array overrides with specific rules, false/undefined means no egress protection */
+    egress?: boolean | EgressRule[];
+    /** Secrets config: true inherits top-level secrets, array overrides with specific secrets, false/undefined means no secrets protection */
+    secrets?: boolean | SecretDeclaration[];
+}
+
 /** Top-level .egressor.yml configuration */
 export interface EgressorConfig {
     /** Schema version */
@@ -54,6 +76,20 @@ export interface EgressorConfig {
     rules: EgressRule[];
     /** Secret declarations for Secretless Broker */
     secrets?: SecretDeclaration[];
+    /** Optional per-container configurations for multi-container mode */
+    containers?: ContainerConfig[];
+}
+
+/** Resolved per-container configuration with concrete rules and secrets */
+export interface ResolvedContainerConfig {
+    /** Human-readable name for this container config */
+    name: string;
+    /** Criteria for matching a discovered container */
+    match: ContainerMatch;
+    /** Resolved egress rules for this container */
+    rules: EgressRule[];
+    /** Resolved secrets for this container */
+    secrets: SecretDeclaration[];
 }
 
 /** Parsed and resolved configuration (presets expanded) */
@@ -61,6 +97,8 @@ export interface ResolvedConfig {
     version: string;
     rules: EgressRule[];
     secrets: SecretDeclaration[];
+    /** Per-container resolved configurations */
+    containers: ResolvedContainerConfig[];
 }
 
 /** Validation error from config parsing */

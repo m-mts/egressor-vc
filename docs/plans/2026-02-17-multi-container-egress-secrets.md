@@ -38,12 +38,12 @@ Extend egressor from single-container to multi-container support. The extension 
 - Modify: `src/config/types.ts`
 - Modify: `src/config/parser.ts`
 
-- [ ] Add ContainerConfig interface: { name: string, match: { name?: string, image?: string, label?: Record<string,string> }, egress?: boolean | EgressRule[], secrets?: boolean | SecretDeclaration[] }
-- [ ] Add optional containers field to EgressorConfig: containers?: ContainerConfig[]
-- [ ] When containers field is absent, behavior is unchanged (current single-container mode for backward compatibility)
-- [ ] Add parsing and validation for the new containers field in parser.ts
-- [ ] Add ResolvedContainerConfig to ResolvedConfig with per-container resolved rules and secrets
-- [ ] Write tests for config parsing with the new containers field
+- [x] Add ContainerConfig interface: { name: string, match: { name?: string, image?: string, label?: Record<string,string> }, egress?: boolean | EgressRule[], secrets?: boolean | SecretDeclaration[] }
+- [x] Add optional containers field to EgressorConfig: containers?: ContainerConfig[]
+- [x] When containers field is absent, behavior is unchanged (current single-container mode for backward compatibility)
+- [x] Add parsing and validation for the new containers field in parser.ts
+- [x] Add ResolvedContainerConfig to ResolvedConfig with per-container resolved rules and secrets
+- [x] Write tests for config parsing with the new containers field
 
 ### Task 3: Per-container rule and secretless config generation
 

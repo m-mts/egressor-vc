@@ -366,6 +366,7 @@ suite('Secretless Config Generator', () => {
             version: '1',
             rules: [],
             secrets: [{ name: 'github-token', type: 'bearer_token', target: 'api.github.com' }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(result.version, '2');
@@ -384,6 +385,7 @@ suite('Secretless Config Generator', () => {
                 target: 'api.example.com',
                 headerName: 'X-API-Key',
             }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         assert.ok(result.services['api-key']);
@@ -395,6 +397,7 @@ suite('Secretless Config Generator', () => {
             version: '1',
             rules: [],
             secrets: [{ name: 'basic-creds', type: 'basic_auth', target: 'secure.example.com' }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['basic-creds'];
@@ -413,6 +416,7 @@ suite('Secretless Config Generator', () => {
                 target: 'db.example.com:5432',
                 listenPort: 5432,
             }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['my-pg'];
@@ -434,6 +438,7 @@ suite('Secretless Config Generator', () => {
                 target: 'db.example.com:3306',
                 listenPort: 3306,
             }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         const svc = result.services['my-mysql'];
@@ -446,6 +451,7 @@ suite('Secretless Config Generator', () => {
             version: '1',
             rules: [],
             secrets: [{ name: 'my-ssh', type: 'ssh', target: 'server.example.com' }],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(Object.keys(result.services).length, 0);
@@ -456,6 +462,7 @@ suite('Secretless Config Generator', () => {
             version: '1',
             rules: [],
             secrets: [{ name: 'token', type: 'bearer_token', target: 'api.example.com' }],
+            containers: [],
         };
         const yamlOutput = generateSecretlessYaml(config, '/test/secrets');
         assert.ok(yamlOutput.includes('version:'));
@@ -468,6 +475,7 @@ suite('Secretless Config Generator', () => {
             version: '1',
             rules: [{ host: 'example.com' }],
             secrets: [],
+            containers: [],
         };
         const result = generateSecretlessConfig(config, '/test/secrets');
         assert.strictEqual(Object.keys(result.services).length, 0);
@@ -480,6 +488,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [{ host: 'registry.npmjs.org' }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('host === "registry.npmjs.org"'));
@@ -490,6 +499,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [{ host: '*.github.com' }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('host === "github.com"'));
@@ -501,6 +511,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [{ host: 'api.example.com', methods: ['GET', 'POST'] }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('["GET", "POST"].includes(method)'));
@@ -511,6 +522,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [{ host: 'api.example.com', paths: ['/api/v1', '/api/v2'] }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('path.startsWith("/api/v1")'));
@@ -527,6 +539,7 @@ suite('Httpjail Rules Generator', () => {
                 description: 'Example',
             }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('host === "api.example.com"'));
@@ -539,6 +552,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('false'));
@@ -552,6 +566,7 @@ suite('Httpjail Rules Generator', () => {
                 { host: 'b.com' },
             ],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('host === "a.com"'));
@@ -567,6 +582,7 @@ suite('Httpjail Rules Generator', () => {
                 { host: 'b.com' },
             ],
             secrets: [],
+            containers: [],
         };
         const expr = generateHttpjailRuleExpression(config);
         assert.ok(expr.includes('host === "a.com"'));
@@ -575,7 +591,7 @@ suite('Httpjail Rules Generator', () => {
     });
 
     test('compact expression returns false for no rules', () => {
-        const config: ResolvedConfig = { version: '1', rules: [], secrets: [] };
+        const config: ResolvedConfig = { version: '1', rules: [], secrets: [], containers: [] };
         assert.strictEqual(generateHttpjailRuleExpression(config), 'false');
     });
 
@@ -584,6 +600,7 @@ suite('Httpjail Rules Generator', () => {
             version: '1',
             rules: [{ host: 'example.com', description: 'My service' }],
             secrets: [],
+            containers: [],
         };
         const rules = generateHttpjailRules(config);
         assert.ok(rules.includes('// My service'));
@@ -768,5 +785,402 @@ rules:
         watcher.dispose();
         // Should not throw on double dispose
         assert.doesNotThrow(() => watcher.dispose());
+    });
+});
+
+suite('Container Config Parsing', () => {
+    test('parses config with containers field', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: registry.npmjs.org
+containers:
+  - name: backend
+    match:
+      image: "node:*"
+    egress: true
+    secrets: true
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok, 'Should parse successfully');
+        if (result.ok) {
+            assert.strictEqual(result.config.containers!.length, 1);
+            assert.strictEqual(result.config.containers![0].name, 'backend');
+            assert.strictEqual(result.config.containers![0].match.image, 'node:*');
+            assert.strictEqual(result.config.containers![0].egress, true);
+            assert.strictEqual(result.config.containers![0].secrets, true);
+        }
+    });
+
+    test('parses config without containers field (backward compatible)', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: registry.npmjs.org
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok);
+        if (result.ok) {
+            assert.strictEqual(result.config.containers, undefined);
+        }
+    });
+
+    test('parses container with match by name', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: web
+    match:
+      name: "my-web-*"
+    egress: true
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok);
+        if (result.ok) {
+            assert.strictEqual(result.config.containers![0].match.name, 'my-web-*');
+        }
+    });
+
+    test('parses container with match by label', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: worker
+    match:
+      label:
+        role: worker
+        env: production
+    egress: true
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok);
+        if (result.ok) {
+            assert.deepStrictEqual(result.config.containers![0].match.label, { role: 'worker', env: 'production' });
+        }
+    });
+
+    test('parses container with custom egress rules array', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: registry.npmjs.org
+containers:
+  - name: backend
+    match:
+      image: "node:*"
+    egress:
+      - host: api.example.com
+        methods: [GET, POST]
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok);
+        if (result.ok) {
+            const egress = result.config.containers![0].egress;
+            assert.ok(Array.isArray(egress));
+            if (Array.isArray(egress)) {
+                assert.strictEqual(egress[0].host, 'api.example.com');
+                assert.deepStrictEqual(egress[0].methods, ['GET', 'POST']);
+            }
+        }
+    });
+
+    test('parses container with custom secrets array', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: api
+    match:
+      name: api-server
+    secrets:
+      - name: db-creds
+        type: postgresql
+        target: db.example.com:5432
+        listenPort: 5432
+`;
+        const result = parseConfig(yaml);
+        assert.ok(result.ok);
+        if (result.ok) {
+            const secrets = result.config.containers![0].secrets;
+            assert.ok(Array.isArray(secrets));
+            if (Array.isArray(secrets)) {
+                assert.strictEqual(secrets[0].name, 'db-creds');
+                assert.strictEqual(secrets[0].type, 'postgresql');
+            }
+        }
+    });
+
+    test('rejects non-array containers', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers: "not an array"
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers'));
+        }
+    });
+
+    test('rejects container without name', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - match:
+      image: "node:*"
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0].name'));
+        }
+    });
+
+    test('rejects container without match criteria', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match: {}
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0].match'));
+        }
+    });
+
+    test('rejects container with invalid match (not an object)', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match: "invalid"
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0].match'));
+        }
+    });
+
+    test('rejects container with invalid egress rules', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match:
+      image: "node:*"
+    egress:
+      - methods: [GET]
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field.includes('containers[0].egress')));
+        }
+    });
+
+    test('rejects container with invalid egress type', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match:
+      image: "node:*"
+    egress: "invalid"
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0].egress'));
+        }
+    });
+
+    test('rejects non-object container', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - "just a string"
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0]'));
+        }
+    });
+
+    test('rejects non-string match.name', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match:
+      name: 123
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field === 'containers[0].match.name'));
+        }
+    });
+
+    test('rejects non-string label values', () => {
+        const yaml = `
+version: "1"
+rules:
+  - host: example.com
+containers:
+  - name: backend
+    match:
+      label:
+        role: 123
+`;
+        const result = parseConfig(yaml);
+        assert.ok(!result.ok);
+        if (!result.ok) {
+            assert.ok(result.errors.some(e => e.field.includes('match.label')));
+        }
+    });
+});
+
+suite('Container Config Resolution', () => {
+    test('resolves containers with egress: true to top-level rules', () => {
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            containers: [{
+                name: 'backend',
+                match: { image: 'node:*' },
+                egress: true,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.strictEqual(resolved.containers.length, 1);
+        assert.deepStrictEqual(resolved.containers[0].rules, resolved.rules);
+    });
+
+    test('resolves containers with egress: false to empty rules', () => {
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            containers: [{
+                name: 'backend',
+                match: { image: 'node:*' },
+                egress: false,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.deepStrictEqual(resolved.containers[0].rules, []);
+    });
+
+    test('resolves containers with custom egress rules', () => {
+        const customRules = [{ host: 'api.example.com' }];
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            containers: [{
+                name: 'backend',
+                match: { image: 'node:*' },
+                egress: customRules,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.deepStrictEqual(resolved.containers[0].rules, customRules);
+    });
+
+    test('resolves containers with secrets: true to top-level secrets', () => {
+        const topSecrets = [{ name: 'token', type: 'bearer_token' as const, target: 'api.example.com' }];
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'example.com' }],
+            secrets: topSecrets,
+            containers: [{
+                name: 'backend',
+                match: { image: 'node:*' },
+                secrets: true,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.deepStrictEqual(resolved.containers[0].secrets, topSecrets);
+    });
+
+    test('resolves containers with custom secrets array', () => {
+        const customSecrets = [{ name: 'db', type: 'postgresql' as const, target: 'db:5432', listenPort: 5432 }];
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'example.com' }],
+            containers: [{
+                name: 'backend',
+                match: { image: 'node:*' },
+                secrets: customSecrets,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.deepStrictEqual(resolved.containers[0].secrets, customSecrets);
+    });
+
+    test('resolves config without containers to empty containers array', () => {
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'example.com' }],
+        };
+        const resolved = resolveConfig(config);
+        assert.deepStrictEqual(resolved.containers, []);
+    });
+
+    test('resolves multiple containers independently', () => {
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            secrets: [{ name: 'token', type: 'bearer_token' as const, target: 'api.example.com' }],
+            containers: [
+                { name: 'web', match: { name: 'web-*' }, egress: true, secrets: false },
+                { name: 'api', match: { name: 'api-*' }, egress: [{ host: 'custom.com' }], secrets: true },
+            ],
+        };
+        const resolved = resolveConfig(config);
+        assert.strictEqual(resolved.containers.length, 2);
+        assert.deepStrictEqual(resolved.containers[0].rules, resolved.rules);
+        assert.deepStrictEqual(resolved.containers[0].secrets, []);
+        assert.deepStrictEqual(resolved.containers[1].rules, [{ host: 'custom.com' }]);
+        assert.strictEqual(resolved.containers[1].secrets.length, 1);
+    });
+
+    test('preserves match criteria in resolved container config', () => {
+        const config: EgressorConfig = {
+            version: '1',
+            rules: [{ host: 'example.com' }],
+            containers: [{
+                name: 'worker',
+                match: { image: 'python:3', label: { role: 'worker' } },
+                egress: true,
+            }],
+        };
+        const resolved = resolveConfig(config);
+        assert.strictEqual(resolved.containers[0].name, 'worker');
+        assert.strictEqual(resolved.containers[0].match.image, 'python:3');
+        assert.deepStrictEqual(resolved.containers[0].match.label, { role: 'worker' });
     });
 });
