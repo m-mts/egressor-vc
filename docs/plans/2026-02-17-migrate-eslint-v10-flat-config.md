@@ -40,9 +40,9 @@ Migrate from the legacy `.eslintrc.json` config format to ESLint v10's flat conf
 
 ### Task 2: Verify acceptance criteria
 
-- [ ] Run `npm run lint` -- must pass or show only pre-existing warnings
-- [ ] Run `npm run compile` -- must pass
-- [ ] Run `npm run test:unit` -- must pass
+- [x] Run `npm run lint` -- must pass or show only pre-existing warnings
+- [x] Run `npm run compile` -- must pass
+- [x] Run `npm run test:unit` -- must pass
 
 ### Task 3: Update documentation
 
