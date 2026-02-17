@@ -2,8 +2,8 @@ import * as assert from 'assert';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
 import { parseConfig, resolveConfig, getPresetRules } from '../../config/parser';
-import { generateSecretlessConfig, generateSecretlessYaml } from '../../config/secretless-generator';
-import { generateHttpjailRules, generateHttpjailRuleExpression } from '../../config/httpjail-rules-generator';
+import { generateSecretlessConfig, generateSecretlessYaml, generateSecretlessYamlFromArray, generatePerContainerSecretlessYaml } from '../../config/secretless-generator';
+import { generateHttpjailRules, generateHttpjailRuleExpression, generateHttpjailRulesFromArray, generatePerContainerHttpjailRules } from '../../config/httpjail-rules-generator';
 import { ConfigWatcher, FileSystem } from '../../config/watcher';
 import { EgressorConfig, ResolvedConfig } from '../../config/types';
 
@@ -1182,5 +1182,245 @@ suite('Container Config Resolution', () => {
         assert.strictEqual(resolved.containers[0].name, 'worker');
         assert.strictEqual(resolved.containers[0].match.image, 'python:3');
         assert.deepStrictEqual(resolved.containers[0].match.label, { role: 'worker' });
+    });
+});
+
+suite('Per-Container Httpjail Rules Generation', () => {
+    test('generateHttpjailRulesFromArray generates rules from a rules array', () => {
+        const rules = [{ host: 'api.example.com' }, { host: 'cdn.example.com' }];
+        const content = generateHttpjailRulesFromArray(rules);
+        assert.ok(content.includes('host === "api.example.com"'));
+        assert.ok(content.includes('host === "cdn.example.com"'));
+        assert.ok(content.includes('||'));
+    });
+
+    test('generateHttpjailRulesFromArray returns false for empty rules', () => {
+        const content = generateHttpjailRulesFromArray([]);
+        assert.ok(content.includes('false'));
+        assert.ok(content.includes('No rules configured'));
+    });
+
+    test('generatePerContainerHttpjailRules generates one file per container', () => {
+        const config: ResolvedConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            secrets: [],
+            containers: [
+                { name: 'backend', match: { image: 'node:*' }, rules: [{ host: 'api.example.com' }], secrets: [] },
+                { name: 'frontend', match: { name: 'web-*' }, rules: [{ host: 'cdn.example.com' }], secrets: [] },
+            ],
+        };
+        const result = generatePerContainerHttpjailRules(config);
+        assert.strictEqual(result.size, 2);
+        assert.ok(result.has('backend'));
+        assert.ok(result.has('frontend'));
+        assert.ok(result.get('backend')!.includes('host === "api.example.com"'));
+        assert.ok(result.get('frontend')!.includes('host === "cdn.example.com"'));
+    });
+
+    test('generatePerContainerHttpjailRules returns empty map for no containers', () => {
+        const config: ResolvedConfig = {
+            version: '1',
+            rules: [{ host: 'example.com' }],
+            secrets: [],
+            containers: [],
+        };
+        const result = generatePerContainerHttpjailRules(config);
+        assert.strictEqual(result.size, 0);
+    });
+
+    test('per-container rules with empty rules array generates block-all', () => {
+        const config: ResolvedConfig = {
+            version: '1',
+            rules: [{ host: 'registry.npmjs.org' }],
+            secrets: [],
+            containers: [
+                { name: 'isolated', match: { name: 'sandbox-*' }, rules: [], secrets: [] },
+            ],
+        };
+        const result = generatePerContainerHttpjailRules(config);
+        assert.ok(result.get('isolated')!.includes('false'));
+    });
+});
+
+suite('Per-Container Secretless Generation', () => {
+    test('generateSecretlessYamlFromArray generates YAML from secrets array', () => {
+        const secrets = [{ name: 'token', type: 'bearer_token' as const, target: 'api.example.com' }];
+        const content = generateSecretlessYamlFromArray(secrets, '/run/secrets');
+        assert.ok(content.includes('version:'));
+        assert.ok(content.includes('token:'));
+    });
+
+    test('generatePerContainerSecretlessYaml generates one file per container with secrets', () => {
+        const config: ResolvedConfig = {
+            version: '1',
+            rules: [],
+            secrets: [],
+            containers: [
+                {
+                    name: 'api',
+                    match: { name: 'api-*' },
+                    rules: [],
+                    secrets: [{ name: 'db-creds', type: 'postgresql' as const, target: 'db:5432', listenPort: 5432 }],
+                },
+                {
+                    name: 'worker',
+                    match: { name: 'worker-*' },
+                    rules: [],
+                    secrets: [],
+                },
+            ],
+        };
+        const result = generatePerContainerSecretlessYaml(config, '/run/secrets');
+        // Only the container with secrets should have an entry
+        assert.strictEqual(result.size, 1);
+        assert.ok(result.has('api'));
+        assert.ok(!result.has('worker'));
+        assert.ok(result.get('api')!.includes('db-creds'));
+    });
+
+    test('generatePerContainerSecretlessYaml returns empty map for no containers', () => {
+        const config: ResolvedConfig = {
+            version: '1',
+            rules: [],
+            secrets: [],
+            containers: [],
+        };
+        const result = generatePerContainerSecretlessYaml(config, '/run/secrets');
+        assert.strictEqual(result.size, 0);
+    });
+});
+
+suite('Config Watcher Per-Container Output', () => {
+    let sandbox: sinon.SinonSandbox;
+
+    function createMockFs(overrides: Partial<FileSystem> = {}): FileSystem {
+        return {
+            readFileSync: sinon.stub().returns(''),
+            writeFileSync: sinon.stub(),
+            existsSync: sinon.stub().returns(true),
+            mkdirSync: sinon.stub(),
+            ...overrides,
+        };
+    }
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
+    test('writeDerivedConfigs writes per-container httpjail and secretless files', () => {
+        const configYaml = `
+version: "1"
+rules:
+  - host: registry.npmjs.org
+secrets:
+  - name: token
+    type: bearer_token
+    target: api.example.com
+containers:
+  - name: backend
+    match:
+      image: "node:*"
+    egress: true
+    secrets: true
+  - name: frontend
+    match:
+      name: "web-*"
+    egress:
+      - host: cdn.example.com
+`;
+        const writeStub = sinon.stub();
+        const mockFs = createMockFs({
+            readFileSync: sinon.stub().returns(configYaml),
+            existsSync: sinon.stub().returns(true),
+            writeFileSync: writeStub,
+        });
+
+        const callbacks = {
+            onConfigChanged: sandbox.stub(),
+            onConfigError: sandbox.stub(),
+        };
+        const watcher = new ConfigWatcher('/workspace', '/workspace/.egressor', callbacks, mockFs);
+
+        return watcher.reload().then(() => {
+            const writtenPaths = writeStub.getCalls().map(c => String(c.args[0]));
+            // Top-level files
+            assert.ok(writtenPaths.some(p => p.includes('httpjail-rules.js') && !p.includes('httpjail-rules-')));
+            assert.ok(writtenPaths.some(p => p.includes('secretless.yml') && !p.includes('secretless-')));
+            // Per-container files
+            assert.ok(writtenPaths.some(p => p.includes('httpjail-rules-backend.js')));
+            assert.ok(writtenPaths.some(p => p.includes('httpjail-rules-frontend.js')));
+            assert.ok(writtenPaths.some(p => p.includes('secretless-backend.yml')));
+            // frontend has no secrets, so no secretless file for it
+            assert.ok(!writtenPaths.some(p => p.includes('secretless-frontend.yml')));
+            watcher.dispose();
+        });
+    });
+
+    test('writeDerivedConfigs skips per-container files when no containers configured', () => {
+        const configYaml = `
+version: "1"
+rules:
+  - host: example.com
+`;
+        const writeStub = sinon.stub();
+        const mockFs = createMockFs({
+            readFileSync: sinon.stub().returns(configYaml),
+            existsSync: sinon.stub().returns(true),
+            writeFileSync: writeStub,
+        });
+
+        const callbacks = {
+            onConfigChanged: sandbox.stub(),
+            onConfigError: sandbox.stub(),
+        };
+        const watcher = new ConfigWatcher('/workspace', '/workspace/.egressor', callbacks, mockFs);
+
+        return watcher.reload().then(() => {
+            // Only 1 file: top-level httpjail rules (no secrets configured, no containers)
+            assert.strictEqual(writeStub.callCount, 1);
+            const writtenPaths = writeStub.getCalls().map(c => String(c.args[0]));
+            assert.ok(writtenPaths[0].includes('httpjail-rules.js'));
+            watcher.dispose();
+        });
+    });
+
+    test('per-container httpjail file content matches container rules', () => {
+        const configYaml = `
+version: "1"
+rules:
+  - host: registry.npmjs.org
+containers:
+  - name: api
+    match:
+      name: "api-*"
+    egress:
+      - host: custom-api.example.com
+`;
+        const writeStub = sinon.stub();
+        const mockFs = createMockFs({
+            readFileSync: sinon.stub().returns(configYaml),
+            existsSync: sinon.stub().returns(true),
+            writeFileSync: writeStub,
+        });
+
+        const callbacks = {
+            onConfigChanged: sandbox.stub(),
+            onConfigError: sandbox.stub(),
+        };
+        const watcher = new ConfigWatcher('/workspace', '/workspace/.egressor', callbacks, mockFs);
+
+        return watcher.reload().then(() => {
+            const apiRulesCall = writeStub.getCalls().find(c => String(c.args[0]).includes('httpjail-rules-api.js'));
+            assert.ok(apiRulesCall, 'Should write per-container rules file for api');
+            const content = String(apiRulesCall!.args[1]);
+            assert.ok(content.includes('custom-api.example.com'));
+            assert.ok(!content.includes('registry.npmjs.org'));
+            watcher.dispose();
+        });
     });
 });

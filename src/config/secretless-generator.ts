@@ -72,11 +72,11 @@ function buildDatabaseService(secret: SecretDeclaration, secretsDir: string): Se
     };
 }
 
-/** Generate a Secretless Broker configuration from resolved Egressor config */
-export function generateSecretlessConfig(config: ResolvedConfig, secretsDir: string): SecretlessConfig {
+/** Build a SecretlessConfig from a secrets array */
+function buildSecretlessConfig(secrets: SecretDeclaration[], secretsDir: string): SecretlessConfig {
     const services: Record<string, SecretlessService> = {};
 
-    for (const secret of config.secrets) {
+    for (const secret of secrets) {
         switch (secret.type) {
             case 'bearer_token':
             case 'header':
@@ -99,8 +99,30 @@ export function generateSecretlessConfig(config: ResolvedConfig, secretsDir: str
     };
 }
 
+/** Generate a Secretless Broker configuration from resolved Egressor config */
+export function generateSecretlessConfig(config: ResolvedConfig, secretsDir: string): SecretlessConfig {
+    return buildSecretlessConfig(config.secrets, secretsDir);
+}
+
 /** Generate secretless.yml content as a YAML string */
 export function generateSecretlessYaml(config: ResolvedConfig, secretsDir: string): string {
     const secretlessConfig = generateSecretlessConfig(config, secretsDir);
     return yaml.dump(secretlessConfig, { lineWidth: 120, noRefs: true });
+}
+
+/** Generate secretless.yml content from a secrets array */
+export function generateSecretlessYamlFromArray(secrets: SecretDeclaration[], secretsDir: string): string {
+    const secretlessConfig = buildSecretlessConfig(secrets, secretsDir);
+    return yaml.dump(secretlessConfig, { lineWidth: 120, noRefs: true });
+}
+
+/** Generate per-container secretless YAML files. Returns Map of container name -> YAML content. */
+export function generatePerContainerSecretlessYaml(config: ResolvedConfig, secretsDir: string): Map<string, string> {
+    const result = new Map<string, string>();
+    for (const container of config.containers) {
+        if (container.secrets.length > 0) {
+            result.set(container.name, generateSecretlessYamlFromArray(container.secrets, secretsDir));
+        }
+    }
+    return result;
 }

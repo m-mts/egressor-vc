@@ -52,11 +52,11 @@ Extend egressor from single-container to multi-container support. The extension 
 - Modify: `src/config/watcher.ts`
 - Create: `src/config/secretless-generator.ts` (if not already generating per-container)
 
-- [ ] Modify httpjail rules generator to produce per-container rule files (one .js per container)
-- [ ] Modify ConfigWatcher.writeDerivedConfigs() to generate per-container output files
-- [ ] When a container config has egress: true, it inherits the top-level rules; when egress is an array, those specific rules apply
-- [ ] Same pattern for secrets: true inherits top-level, array overrides
-- [ ] Write tests for per-container rule file generation
+- [x] Modify httpjail rules generator to produce per-container rule files (one .js per container)
+- [x] Modify ConfigWatcher.writeDerivedConfigs() to generate per-container output files
+- [x] When a container config has egress: true, it inherits the top-level rules; when egress is an array, those specific rules apply
+- [x] Same pattern for secrets: true inherits top-level, array overrides
+- [x] Write tests for per-container rule file generation
 
 ### Task 4: Multi-container orchestration in EgressorSetup
 

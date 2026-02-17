@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseConfig, resolveConfig } from './parser';
-import { generateSecretlessYaml } from './secretless-generator';
-import { generateHttpjailRules } from './httpjail-rules-generator';
+import { generateSecretlessYaml, generatePerContainerSecretlessYaml } from './secretless-generator';
+import { generateHttpjailRules, generatePerContainerHttpjailRules } from './httpjail-rules-generator';
 import { ResolvedConfig } from './types';
 
 export interface ConfigWatcherCallbacks {
@@ -120,14 +120,34 @@ export class ConfigWatcher implements vscode.Disposable {
             this.fs.mkdirSync(this.outputDir, { recursive: true, mode: 0o700 });
         }
 
-        // Write httpjail rules
+        // Write top-level httpjail rules
         const rulesContent = generateHttpjailRules(config);
         this.fs.writeFileSync(path.join(this.outputDir, 'httpjail-rules.js'), rulesContent, { mode: 0o600 });
 
-        // Write secretless.yml if secrets are configured
+        // Write top-level secretless.yml if secrets are configured
         if (config.secrets.length > 0) {
             const secretlessContent = generateSecretlessYaml(config, this.secretsDir);
             this.fs.writeFileSync(path.join(this.outputDir, 'secretless.yml'), secretlessContent, { mode: 0o600 });
+        }
+
+        // Write per-container httpjail rule files
+        const containerRules = generatePerContainerHttpjailRules(config);
+        for (const [containerName, content] of containerRules) {
+            this.fs.writeFileSync(
+                path.join(this.outputDir, `httpjail-rules-${containerName}.js`),
+                content,
+                { mode: 0o600 }
+            );
+        }
+
+        // Write per-container secretless.yml files
+        const containerSecrets = generatePerContainerSecretlessYaml(config, this.secretsDir);
+        for (const [containerName, content] of containerSecrets) {
+            this.fs.writeFileSync(
+                path.join(this.outputDir, `secretless-${containerName}.yml`),
+                content,
+                { mode: 0o600 }
+            );
         }
     }
 
