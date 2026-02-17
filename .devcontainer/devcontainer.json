@@ -15,7 +15,14 @@
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Install ralphex
-	"postCreateCommand": "bash .devcontainer/post-create.sh"
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"codeandstuff.package-json-upgrade"
+			]
+		}
+	}
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Configure tool-specific properties.
