@@ -413,7 +413,7 @@ export class EgressorSetup implements vscode.Disposable {
     private cleanupSecretFiles(): void {
         try {
             const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const fs = require('fs');
             if (fs.existsSync(secretsDir)) {
                 const files = fs.readdirSync(secretsDir) as string[];

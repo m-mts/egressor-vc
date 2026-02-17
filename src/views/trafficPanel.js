@@ -1,7 +1,6 @@
 // @ts-check
 
 /** @type {typeof acquireVsCodeApi} */
-// eslint-disable-next-line no-undef
 const vscode = acquireVsCodeApi();
 
 /** @typedef {{ type: 'traffic', timestamp: string, method?: string, host: string, path?: string, port?: number, status: string, category: string, protocol?: string, durationMs?: number }} TrafficEntry */

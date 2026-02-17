@@ -96,31 +96,31 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src/",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
     "test:unit": "tsc -p ./ && mocha",
     "test:coverage": "tsc -p ./ && nyc mocha"
   },
   "devDependencies": {
-    "@types/glob": "^8.1.0",
+    "@eslint/js": "^10.0.1",
+    "@types/glob": "^9.0.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.0",
-    "@types/sinon": "^17.0.3",
-    "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "@vscode/test-electron": "^2.3.8",
-    "eslint": "^8.56.0",
-    "mocha": "^10.2.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.2.3",
+    "@types/sinon": "^21.0.0",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^10.0.0",
+    "mocha": "^11.3.0",
     "nyc": "^17.1.0",
-    "sinon": "^17.0.1",
+    "sinon": "^21.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   }
 }

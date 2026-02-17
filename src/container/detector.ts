@@ -68,7 +68,7 @@ export function hasEgressorConfig(env: VscodeEnv = defaultVscodeEnv): boolean {
         return false;
     }
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require('fs');
         return fs.existsSync(`${workspacePath}/.egressor.yml`);
     } catch {

@@ -1,6 +1,6 @@
 // Register vscode mock before any tests import vscode
 // This file is compiled to JS and runs as CommonJS in mocha
-/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable @typescript-eslint/no-require-imports */
 const Module = require('module');
 const path = require('path');
 

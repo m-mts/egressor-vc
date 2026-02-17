@@ -22,7 +22,7 @@ export interface FileSystemOps {
 
 /** Default filesystem operations using Node's fs/promises */
 function defaultFsOps(): FileSystemOps {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs').promises;
     return {
         mkdir: (dirPath: string, options: { recursive: boolean }) => fs.mkdir(dirPath, { ...options, mode: 0o700 }),
