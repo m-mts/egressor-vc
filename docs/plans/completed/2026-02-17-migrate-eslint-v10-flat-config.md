@@ -46,5 +46,5 @@ Migrate from the legacy `.eslintrc.json` config format to ESLint v10's flat conf
 
 ### Task 3: Update documentation
 
-- [ ] Update CLAUDE.md if internal patterns changed
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update CLAUDE.md if internal patterns changed
+- [x] Move this plan to `docs/plans/completed/`
