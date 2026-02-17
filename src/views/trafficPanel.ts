@@ -71,6 +71,7 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri;
     private readonly fsOps: FsReadOps;
     private healthCheckDeps: HealthCheckDeps;
+    private healthCheckRan = false;
 
     constructor(extensionUri: vscode.Uri, fsOps?: FsReadOps, healthCheckDeps?: HealthCheckDeps) {
         this.extensionUri = extensionUri;
@@ -78,9 +79,9 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
         this.healthCheckDeps = healthCheckDeps || {};
     }
 
-    /** Set or update the health check dependencies (e.g. after managers are created) */
+    /** Merge additional health check dependencies (e.g. after managers are created) */
     setHealthCheckDeps(deps: HealthCheckDeps): void {
-        this.healthCheckDeps = deps;
+        this.healthCheckDeps = { ...this.healthCheckDeps, ...deps };
     }
 
     public resolveWebviewView(
@@ -100,10 +101,13 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
 
-        // Run dependency health check asynchronously (don't block panel rendering)
-        this.runDependencyHealthCheck().catch(() => {
-            // Best-effort; failures are logged via notifications
-        });
+        // Run dependency health check once (don't block panel rendering)
+        if (!this.healthCheckRan) {
+            this.healthCheckRan = true;
+            this.runDependencyHealthCheck().catch((err) => {
+                console.warn('Egressor: health check failed:', err);
+            });
+        }
     }
 
     /** Run dependency health checks and show notifications for missing/stopped dependencies */
@@ -115,39 +119,47 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
         const showInfo = deps.showInformationMessage ?? vscode.window.showInformationMessage.bind(vscode.window);
         const execCmd = deps.executeCommand ?? vscode.commands.executeCommand.bind(vscode.commands);
 
-        // Check httpjail
-        const httpjailResult = detect();
-        if (!httpjailResult.found) {
-            const action = await showWarning(
-                'httpjail is not installed. Traffic monitoring requires httpjail.',
-                'View Setup Guide'
-            );
-            if (action === 'View Setup Guide') {
-                const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'httpjail-rules.md');
-                await execCmd('markdown.showPreview', docUri);
+        // Check httpjail (isolated so broker check still runs on failure)
+        try {
+            const httpjailResult = detect();
+            if (!httpjailResult.found) {
+                const action = await showWarning(
+                    'httpjail is not installed. Traffic monitoring requires httpjail.',
+                    'View Setup Guide'
+                );
+                if (action === 'View Setup Guide') {
+                    const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'httpjail-rules.md');
+                    await execCmd('markdown.showPreview', docUri);
+                }
+            } else if (deps.httpjailManager && deps.httpjailManager.getState() !== 'running') {
+                await showInfo(
+                    'httpjail is installed but not running. Run "Egressor: Start" to begin traffic monitoring.',
+                );
             }
-        } else if (deps.httpjailManager && deps.httpjailManager.getState() !== 'running') {
-            await showInfo(
-                'httpjail is installed but not running. Run "Egressor: Start" to begin traffic monitoring.',
-            );
+        } catch (err) {
+            console.warn('Egressor: httpjail health check failed:', err);
         }
 
-        // Check secretless-broker
-        const brokerResult = detectBroker();
+        // Check secretless-broker (only relevant when secrets are configured)
         const hasSecrets = deps.hasSecretsConfig ? deps.hasSecretsConfig() : false;
-        if (!brokerResult.found) {
-            const action = await showWarning(
-                'Secretless Broker is not installed. Secret injection requires Secretless Broker.',
-                'View Setup Guide'
-            );
-            if (action === 'View Setup Guide') {
-                const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'secretless-broker.md');
-                await execCmd('markdown.showPreview', docUri);
+        try {
+            const brokerResult = detectBroker();
+            if (!brokerResult.found && hasSecrets) {
+                const action = await showWarning(
+                    'Secretless Broker is not installed. Secret injection requires Secretless Broker.',
+                    'View Setup Guide'
+                );
+                if (action === 'View Setup Guide') {
+                    const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'secretless-broker.md');
+                    await execCmd('markdown.showPreview', docUri);
+                }
+            } else if (hasSecrets && deps.brokerManager && deps.brokerManager.getState() !== 'running') {
+                await showInfo(
+                    'Secretless Broker is installed but not running. Run "Egressor: Start" to enable secret injection.',
+                );
             }
-        } else if (hasSecrets && deps.brokerManager && deps.brokerManager.getState() !== 'running') {
-            await showInfo(
-                'Secretless Broker is installed but not running. Run "Egressor: Start" to enable secret injection.',
-            );
+        } catch (err) {
+            console.warn('Egressor: broker health check failed:', err);
         }
     }
 
