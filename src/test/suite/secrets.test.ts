@@ -3,7 +3,8 @@ import * as sinon from 'sinon';
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
 import { parseBrokerLogLine, createBrokerStreamParser } from '../../secrets/broker-events';
-import { SecretlessBrokerManager, ProcessSpawner, FileSystemOps } from '../../secrets/broker-manager';
+import { SecretlessBrokerManager, ProcessSpawner, FileSystemOps, detectBrokerBinary } from '../../secrets/broker-manager';
+import { SystemOperations } from '../../jail/installer';
 import { CredentialProvider, SecretStorageApi, GlobalStateApi } from '../../secrets/credential-provider';
 import { promptForSecret, promptForMissingSecrets, WindowApi } from '../../secrets/prompt';
 import { SecretInjectionEvent } from '../../secrets/types';
@@ -108,6 +109,57 @@ suite('Secretless Broker Stream Parser', () => {
         const parser = createBrokerStreamParser(e => events.push(e));
         parser.flush();
         assert.strictEqual(events.length, 0);
+    });
+});
+
+// --- Broker Binary Detection Tests ---
+
+suite('detectBrokerBinary', () => {
+    test('detects secretless-broker on PATH (linux)', () => {
+        const execFileStub = sinon.stub();
+        execFileStub.withArgs('which', ['secretless-broker']).returns('/usr/local/bin/secretless-broker');
+        const sysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = {
+            execFileSync: execFileStub,
+            platform: () => 'linux',
+        };
+
+        const result = detectBrokerBinary(sysOps);
+        assert.ok(result.found);
+        assert.strictEqual(result.path, '/usr/local/bin/secretless-broker');
+    });
+
+    test('detects secretless-broker on PATH (win32)', () => {
+        const execFileStub = sinon.stub();
+        execFileStub.withArgs('where', ['secretless-broker']).returns('C:\\Program Files\\secretless-broker.exe');
+        const sysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = {
+            execFileSync: execFileStub,
+            platform: () => 'win32',
+        };
+
+        const result = detectBrokerBinary(sysOps);
+        assert.ok(result.found);
+        assert.strictEqual(result.path, 'C:\\Program Files\\secretless-broker.exe');
+    });
+
+    test('returns not found when binary is absent', () => {
+        const sysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = {
+            execFileSync: sinon.stub().throws(new Error('not found')),
+            platform: () => 'linux',
+        };
+
+        const result = detectBrokerBinary(sysOps);
+        assert.ok(!result.found);
+        assert.strictEqual(result.path, undefined);
+    });
+
+    test('returns not found when which returns empty string', () => {
+        const sysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = {
+            execFileSync: sinon.stub().returns(''),
+            platform: () => 'linux',
+        };
+
+        const result = detectBrokerBinary(sysOps);
+        assert.ok(!result.found);
     });
 });
 

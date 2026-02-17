@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ChildProcess, SpawnOptions, spawn as nodeSpawn } from 'child_process';
+import { ChildProcess, SpawnOptions, spawn as nodeSpawn, execFileSync as nodeExecFileSync } from 'child_process';
 import {
     BrokerProcessState,
     BrokerStartOptions,
@@ -10,6 +10,7 @@ import {
     SecretInjectionListener,
 } from './types';
 import { parseBrokerLogLine, createBrokerStreamParser } from './broker-events';
+import { DetectionResult, SystemOperations } from '../jail/installer';
 
 /** Interface for spawning child processes, enabling testability */
 export interface ProcessSpawner {
@@ -43,6 +44,36 @@ const defaultFsOps: FileSystemOps = {
         fs.unlinkSync(p);
     },
 };
+
+/** Default system operations for broker binary detection */
+const defaultBrokerSysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = {
+    execFileSync(file: string, args: string[]): string {
+        return nodeExecFileSync(file, args, { encoding: 'utf-8' }).toString().trim();
+    },
+    platform(): string {
+        return process.platform;
+    },
+};
+
+/**
+ * Detect if secretless-broker is available on PATH.
+ * Returns { found: boolean; path?: string }.
+ */
+export function detectBrokerBinary(
+    sysOps: Pick<SystemOperations, 'execFileSync' | 'platform'> = defaultBrokerSysOps
+): DetectionResult {
+    try {
+        const cmd = sysOps.platform() === 'win32' ? 'where' : 'which';
+        const binaryPath = sysOps.execFileSync(cmd, ['secretless-broker']);
+        if (binaryPath) {
+            return { found: true, path: binaryPath };
+        }
+    } catch {
+        // not on PATH
+    }
+
+    return { found: false };
+}
 
 /**
  * Manages the Secretless Broker process lifecycle: start, stop, restart, health check.
