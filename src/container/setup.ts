@@ -430,6 +430,7 @@ export class EgressorSetup implements vscode.Disposable {
 
     /** Clean up resources allocated during a partial/failed start */
     private async cleanupPartialStart(): Promise<void> {
+        this.cleanupSecretFiles();
         this.configWatcher?.dispose();
         this.configWatcher = undefined;
         await this.sessionLogger.stop().catch(() => {});

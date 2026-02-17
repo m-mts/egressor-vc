@@ -68,6 +68,11 @@ Tests use mocha with TDD UI (`suite`/`test`), sinon for mocking, and a custom vs
 
 Extension config lives in `.egressor.yml` (workspace root). The schema is defined in `src/config/types.ts`. See README.md for the full configuration reference.
 
+## Linting
+
+- ESLint uses v10 flat config format (`eslint.config.mjs`), not the legacy `.eslintrc.json`
+- Linting uses the `typescript-eslint` unified package (not separate `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`)
+
 ## Important Notes
 
 - httpjail rules are JavaScript expressions (not JSON/YAML) - see `httpjail-rules-generator.ts`
