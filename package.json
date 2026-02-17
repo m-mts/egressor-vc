@@ -121,6 +121,8 @@
     "typescript-eslint": "^8.56.0"
   },
   "dependencies": {
+    "@types/dockerode": "^4.0.1",
+    "dockerode": "^4.0.9",
     "js-yaml": "^4.1.1"
   }
 }
