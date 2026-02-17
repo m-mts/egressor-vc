@@ -64,13 +64,13 @@ Extend egressor from single-container to multi-container support. The extension 
 - Modify: `src/container/setup.ts`
 - Modify: `src/jail/manager.ts`
 
-- [ ] Create ContainerOrchestrator that manages a Map of containerId -> { httpjailManager?, brokerManager? }
-- [ ] On start(), use DockerDiscovery to list containers, match them against config, spawn per-container httpjail/broker instances
-- [ ] Each httpjail instance uses --docker-run <containerId> with its own rules file
-- [ ] Wire per-container traffic events with container identity (add containerId/containerName to TrafficEvent)
-- [ ] Handle container start/stop events: spin up/tear down enforcement for matching containers
-- [ ] On stop(), tear down all per-container managers
-- [ ] Write tests for multi-container orchestration with mocked managers
+- [x] Create ContainerOrchestrator that manages a Map of containerId -> { httpjailManager?, brokerManager? }
+- [x] On start(), use DockerDiscovery to list containers, match them against config, spawn per-container httpjail/broker instances
+- [x] Each httpjail instance uses --docker-run <containerId> with its own rules file
+- [x] Wire per-container traffic events with container identity (add containerId/containerName to TrafficEvent)
+- [x] Handle container start/stop events: spin up/tear down enforcement for matching containers
+- [x] On stop(), tear down all per-container managers
+- [x] Write tests for multi-container orchestration with mocked managers
 
 ### Task 5: Add container identity to traffic and secret events
 

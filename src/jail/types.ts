@@ -30,6 +30,10 @@ export interface TrafficEvent {
     durationMs?: number;
     /** Raw log line from httpjail */
     raw: string;
+    /** Container ID (set in multi-container mode) */
+    containerId?: string;
+    /** Container name (set in multi-container mode) */
+    containerName?: string;
 }
 
 /** httpjail process state */
