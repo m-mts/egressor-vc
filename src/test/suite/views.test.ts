@@ -522,6 +522,7 @@ suite('TrafficPanelProvider Health Check', () => {
         const deps = createHealthCheckDeps({
             detectBrokerBinaryFn: () => ({ found: false }),
             showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
+            hasSecretsConfig: () => true,
         });
         const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
 
@@ -541,6 +542,7 @@ suite('TrafficPanelProvider Health Check', () => {
             detectBrokerBinaryFn: () => ({ found: false }),
             showWarningMessage: showWarning as unknown as typeof vscode.window.showWarningMessage,
             executeCommand: execCmd as unknown as typeof vscode.commands.executeCommand,
+            hasSecretsConfig: () => true,
         });
         const provider = new TrafficPanelProvider(createMockExtensionUri(), createMockFsOps(), deps);
 

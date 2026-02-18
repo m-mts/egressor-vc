@@ -103,11 +103,11 @@ Extend egressor from single-container to multi-container support. The extension 
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] Manual test: create a docker-compose setup with 2+ containers, configure per-container rules, verify independent enforcement
-- [ ] Manual test: verify single-container mode still works when containers field is absent
-- [ ] Run full test suite
-- [ ] Run linter
-- [ ] Verify test coverage meets 80%+
+- [x] Manual test: create a docker-compose setup with 2+ containers, configure per-container rules, verify independent enforcement
+- [x] Manual test: verify single-container mode still works when containers field is absent
+- [x] Run full test suite
+- [x] Run linter
+- [x] Verify test coverage meets 80%+
 
 ### Task 8: Update documentation
 
