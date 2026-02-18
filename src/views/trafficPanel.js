@@ -3,25 +3,48 @@
 /** @type {typeof acquireVsCodeApi} */
 const vscode = acquireVsCodeApi();
 
-/** @typedef {{ type: 'traffic', timestamp: string, method?: string, host: string, path?: string, port?: number, status: string, category: string, protocol?: string, durationMs?: number }} TrafficEntry */
-/** @typedef {{ type: 'secret', timestamp: string, secretName: string, secretType: string, target: string, success: boolean }} SecretEntry */
+/** @typedef {{ type: 'traffic', timestamp: string, method?: string, host: string, path?: string, port?: number, status: string, category: string, protocol?: string, durationMs?: number, containerId?: string, containerName?: string }} TrafficEntry */
+/** @typedef {{ type: 'secret', timestamp: string, secretName: string, secretType: string, target: string, success: boolean, containerId?: string, containerName?: string }} SecretEntry */
 /** @typedef {TrafficEntry | SecretEntry} PanelEntry */
+/** @typedef {{ id: string, name: string, image: string, protection: string }} ContainerInfo */
+
+const CONTAINER_COLORS = 6;
 
 const state = {
     /** @type {PanelEntry[]} */
     events: [],
+    /** @type {ContainerInfo[]} */
+    containers: [],
+    /** @type {Map<string, number>} */
+    containerColorMap: new Map(),
     filter: {
         search: '',
         status: 'all',
         method: 'all',
+        container: 'all',
     },
     maxEvents: 500,
 };
+
+/**
+ * Get a stable color index for a container name.
+ * @param {string} name
+ * @returns {number}
+ */
+function getContainerColorIndex(name) {
+    if (state.containerColorMap.has(name)) {
+        return /** @type {number} */ (state.containerColorMap.get(name));
+    }
+    const idx = state.containerColorMap.size % CONTAINER_COLORS;
+    state.containerColorMap.set(name, idx);
+    return idx;
+}
 
 function init() {
     const searchInput = document.getElementById('search-input');
     const statusFilter = document.getElementById('status-filter');
     const methodFilter = document.getElementById('method-filter');
+    const containerFilter = document.getElementById('container-filter');
     const clearBtn = document.getElementById('clear-btn');
 
     if (searchInput) {
@@ -45,10 +68,17 @@ function init() {
         });
     }
 
+    if (containerFilter) {
+        containerFilter.addEventListener('change', (e) => {
+            state.filter.container = /** @type {HTMLSelectElement} */ (e.target).value;
+            render();
+        });
+    }
+
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             state.events = [];
-            vscode.setState({ events: state.events });
+            vscode.setState({ events: state.events, containers: state.containers });
             render();
         });
     }
@@ -62,9 +92,12 @@ function init() {
             case 'secretEvent':
                 addEvent({ type: 'secret', ...message.data });
                 break;
+            case 'containerStatus':
+                updateContainers(message.data);
+                break;
             case 'clear':
                 state.events = [];
-                vscode.setState({ events: state.events });
+                vscode.setState({ events: state.events, containers: state.containers });
                 render();
                 break;
         }
@@ -74,6 +107,9 @@ function init() {
     const persisted = vscode.getState();
     if (persisted && persisted.events) {
         state.events = persisted.events;
+    }
+    if (persisted && persisted.containers) {
+        state.containers = persisted.containers;
     }
 
     render();
@@ -85,13 +121,77 @@ function addEvent(entry) {
     if (state.events.length > state.maxEvents) {
         state.events = state.events.slice(-state.maxEvents);
     }
-    vscode.setState({ events: state.events });
+    vscode.setState({ events: state.events, containers: state.containers });
     render();
+}
+
+/** @param {ContainerInfo[]} containers */
+function updateContainers(containers) {
+    state.containers = containers;
+    vscode.setState({ events: state.events, containers: state.containers });
+    renderContainers();
+    updateContainerFilter();
+    render();
+}
+
+function renderContainers() {
+    const section = document.getElementById('containers-section');
+    const list = document.getElementById('containers-list');
+    if (!section || !list) return;
+
+    if (state.containers.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+    list.innerHTML = state.containers.map((c) => {
+        const colorIdx = getContainerColorIndex(c.name);
+        const protClass = 'prot-' + c.protection;
+        const icon = getProtectionIcon(c.protection);
+        return `<div class="container-card">
+            <span class="container-icon">${icon}</span>
+            <span class="container-name container-color-${colorIdx}">${escapeHtml(c.name)}</span>
+            <span class="container-image">${escapeHtml(c.image)}</span>
+            <span class="container-protection ${protClass}">${escapeHtml(c.protection)}</span>
+        </div>`;
+    }).join('');
+}
+
+/**
+ * @param {string} protection
+ * @returns {string}
+ */
+function getProtectionIcon(protection) {
+    switch (protection) {
+        case 'egress': return '\u{1F6E1}';
+        case 'secrets': return '\u{1F512}';
+        case 'both': return '\u{1F510}';
+        default: return '\u25CB';
+    }
+}
+
+function updateContainerFilter() {
+    const containerFilter = document.getElementById('container-filter');
+    if (!containerFilter) return;
+
+    const current = state.filter.container;
+    containerFilter.innerHTML = '<option value="all">All Containers</option>';
+    for (const c of state.containers) {
+        const opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        containerFilter.appendChild(opt);
+    }
+    // Restore selection if still valid
+    /** @type {HTMLSelectElement} */ (containerFilter).value =
+        state.containers.some(c => c.name === current) ? current : 'all';
+    state.filter.container = /** @type {HTMLSelectElement} */ (containerFilter).value;
 }
 
 /** @param {PanelEntry} entry */
 function matchesFilter(entry) {
-    const { search, status, method } = state.filter;
+    const { search, status, method, container } = state.filter;
 
     if (search) {
         const searchable = entry.type === 'traffic'
@@ -113,6 +213,11 @@ function matchesFilter(entry) {
 
     if (method !== 'all' && entry.type === 'traffic') {
         if (!entry.method || entry.method.toUpperCase() !== method.toUpperCase()) return false;
+    }
+
+    if (container !== 'all') {
+        const entryContainer = entry.containerName || '';
+        if (entryContainer !== container) return false;
     }
 
     return true;
@@ -148,10 +253,12 @@ function renderRow(entry) {
     const rowClass = getRowClass(entry);
     const statusIcon = getStatusIcon(entry);
     const statusClass = getStatusClass(entry);
+    const containerBadge = renderContainerBadge(entry);
 
     if (entry.type === 'secret') {
         return `<div class="event-row ${rowClass}">
             <span class="event-status ${statusClass}">${statusIcon}</span>
+            ${containerBadge}
             <span class="event-method">INJECT</span>
             <span class="event-host">${escapeHtml(entry.target)}</span>
             <span class="event-path">${escapeHtml(entry.secretName)} (${escapeHtml(entry.secretType)})</span>
@@ -166,11 +273,24 @@ function renderRow(entry) {
 
     return `<div class="event-row ${rowClass}">
         <span class="event-status ${statusClass}">${statusIcon}</span>
+        ${containerBadge}
         <span class="event-method">${escapeHtml(method)}</span>
         <span class="event-host">${escapeHtml(host)}${entry.port ? ':' + escapeHtml(String(entry.port)) : ''}</span>
         <span class="event-path">${escapeHtml(path)}</span>
         <span class="event-timing">${timing}</span>
     </div>`;
+}
+
+/**
+ * Render a container name badge for an event row.
+ * @param {PanelEntry} entry
+ * @returns {string}
+ */
+function renderContainerBadge(entry) {
+    const name = entry.containerName;
+    if (!name) return '';
+    const colorIdx = getContainerColorIndex(name);
+    return `<span class="event-container container-color-${colorIdx}" title="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
 }
 
 function render() {

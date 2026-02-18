@@ -14,10 +14,21 @@ import { detectBrokerBinary } from '../secrets/broker-manager';
 import { HttpjailManager } from '../jail/manager';
 import { SecretlessBrokerManager } from '../secrets/broker-manager';
 
+/** Container protection mode for the UI */
+export type ContainerProtectionMode = 'egress' | 'secrets' | 'both' | 'none';
+
+/** Container status data sent to the webview */
+export interface ContainerStatusInfo {
+    id: string;
+    name: string;
+    image: string;
+    protection: ContainerProtectionMode;
+}
+
 /** Serialized traffic event for webview messaging */
 export interface TrafficPanelMessage {
-    command: 'trafficEvent' | 'secretEvent' | 'clear';
-    data?: SerializedTrafficEvent | SerializedSecretEvent;
+    command: 'trafficEvent' | 'secretEvent' | 'clear' | 'containerStatus';
+    data?: SerializedTrafficEvent | SerializedSecretEvent | ContainerStatusInfo[];
 }
 
 export interface SerializedTrafficEvent {
@@ -31,6 +42,8 @@ export interface SerializedTrafficEvent {
     category: string;
     protocol?: string;
     durationMs?: number;
+    containerId?: string;
+    containerName?: string;
 }
 
 export interface SerializedSecretEvent {
@@ -40,6 +53,8 @@ export interface SerializedSecretEvent {
     secretType: string;
     target: string;
     success: boolean;
+    containerId?: string;
+    containerName?: string;
 }
 
 /** Interface for file system operations (testable) */
@@ -177,6 +192,8 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
             category: event.category,
             protocol: event.protocol,
             durationMs: event.durationMs,
+            containerId: event.containerId,
+            containerName: event.containerName,
         };
         this.view.webview.postMessage({ command: 'trafficEvent', data: serialized });
     }
@@ -191,8 +208,16 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
             secretType: event.secretType,
             target: event.target,
             success: event.success,
+            containerId: event.containerId,
+            containerName: event.containerName,
         };
         this.view.webview.postMessage({ command: 'secretEvent', data: serialized });
+    }
+
+    /** Send container status updates to the webview */
+    public postContainerStatus(containers: ContainerStatusInfo[]): void {
+        if (!this.view) { return; }
+        this.view.webview.postMessage({ command: 'containerStatus', data: containers });
     }
 
     /** Clear all events in the webview */
@@ -250,6 +275,8 @@ export function serializeTrafficEvent(event: TrafficEvent): SerializedTrafficEve
         category: event.category,
         protocol: event.protocol,
         durationMs: event.durationMs,
+        containerId: event.containerId,
+        containerName: event.containerName,
     };
 }
 
@@ -262,5 +289,7 @@ export function serializeSecretEvent(event: SecretInjectionEvent): SerializedSec
         secretType: event.secretType,
         target: event.target,
         success: event.success,
+        containerId: event.containerId,
+        containerName: event.containerName,
     };
 }

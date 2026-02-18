@@ -7,6 +7,7 @@ import {
     serializeSecretEvent,
     FsReadOps,
     HealthCheckDeps,
+    ContainerStatusInfo,
 } from '../../views/trafficPanel';
 import { TrafficEvent } from '../../jail/types';
 import { SecretInjectionEvent } from '../../secrets/types';
@@ -632,5 +633,176 @@ suite('TrafficPanelProvider Health Check', () => {
                 resolve();
             }, 10);
         });
+    });
+});
+
+// --- Container Status Tests ---
+
+suite('TrafficPanelProvider Container Support', () => {
+    let sandbox: sinon.SinonSandbox;
+
+    setup(() => {
+        sandbox = sinon.createSandbox();
+    });
+
+    teardown(() => {
+        sandbox.restore();
+    });
+
+    test('postContainerStatus sends containerStatus command to webview', () => {
+        const extensionUri = createMockExtensionUri();
+        const fsOps = createMockFsOps();
+        const provider = new TrafficPanelProvider(extensionUri, fsOps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        const containers: ContainerStatusInfo[] = [
+            { id: 'abc123', name: 'web-app', image: 'node:18', protection: 'egress' },
+            { id: 'def456', name: 'api-server', image: 'python:3.11', protection: 'both' },
+        ];
+        provider.postContainerStatus(containers);
+
+        assert.ok(mockView.webview.postMessage.calledOnce);
+        const message = mockView.webview.postMessage.firstCall.args[0];
+        assert.strictEqual(message.command, 'containerStatus');
+        assert.ok(Array.isArray(message.data));
+        assert.strictEqual(message.data.length, 2);
+        assert.strictEqual(message.data[0].name, 'web-app');
+        assert.strictEqual(message.data[0].protection, 'egress');
+        assert.strictEqual(message.data[1].name, 'api-server');
+        assert.strictEqual(message.data[1].protection, 'both');
+    });
+
+    test('postContainerStatus does nothing when view is not resolved', () => {
+        const extensionUri = createMockExtensionUri();
+        const provider = new TrafficPanelProvider(extensionUri, createMockFsOps());
+        const containers: ContainerStatusInfo[] = [
+            { id: 'abc123', name: 'web-app', image: 'node:18', protection: 'egress' },
+        ];
+        // Should not throw
+        provider.postContainerStatus(containers);
+    });
+
+    test('postContainerStatus sends empty array for no containers', () => {
+        const extensionUri = createMockExtensionUri();
+        const fsOps = createMockFsOps();
+        const provider = new TrafficPanelProvider(extensionUri, fsOps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        provider.postContainerStatus([]);
+
+        const message = mockView.webview.postMessage.firstCall.args[0];
+        assert.strictEqual(message.command, 'containerStatus');
+        assert.deepStrictEqual(message.data, []);
+    });
+
+    test('postTrafficEvent includes container identity fields', () => {
+        const extensionUri = createMockExtensionUri();
+        const fsOps = createMockFsOps();
+        const provider = new TrafficPanelProvider(extensionUri, fsOps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        const event = createTrafficEvent({ containerId: 'abc123', containerName: 'web-app' });
+        provider.postTrafficEvent(event);
+
+        const message = mockView.webview.postMessage.firstCall.args[0];
+        assert.strictEqual(message.data.containerId, 'abc123');
+        assert.strictEqual(message.data.containerName, 'web-app');
+    });
+
+    test('postSecretEvent includes container identity fields', () => {
+        const extensionUri = createMockExtensionUri();
+        const fsOps = createMockFsOps();
+        const provider = new TrafficPanelProvider(extensionUri, fsOps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        const event = createSecretEvent({ containerId: 'def456', containerName: 'api-server' });
+        provider.postSecretEvent(event);
+
+        const message = mockView.webview.postMessage.firstCall.args[0];
+        assert.strictEqual(message.data.containerId, 'def456');
+        assert.strictEqual(message.data.containerName, 'api-server');
+    });
+
+    test('serializeTrafficEvent includes container fields', () => {
+        const event = createTrafficEvent({ containerId: 'abc123', containerName: 'web-app' });
+        const serialized = serializeTrafficEvent(event);
+
+        assert.strictEqual(serialized.containerId, 'abc123');
+        assert.strictEqual(serialized.containerName, 'web-app');
+    });
+
+    test('serializeTrafficEvent omits container fields when not set', () => {
+        const event = createTrafficEvent();
+        const serialized = serializeTrafficEvent(event);
+
+        assert.strictEqual(serialized.containerId, undefined);
+        assert.strictEqual(serialized.containerName, undefined);
+    });
+
+    test('serializeSecretEvent includes container fields', () => {
+        const event = createSecretEvent({ containerId: 'def456', containerName: 'api-server' });
+        const serialized = serializeSecretEvent(event);
+
+        assert.strictEqual(serialized.containerId, 'def456');
+        assert.strictEqual(serialized.containerName, 'api-server');
+    });
+
+    test('serializeSecretEvent omits container fields when not set', () => {
+        const event = createSecretEvent();
+        const serialized = serializeSecretEvent(event);
+
+        assert.strictEqual(serialized.containerId, undefined);
+        assert.strictEqual(serialized.containerName, undefined);
+    });
+
+    test('postContainerStatus sends all protection modes correctly', () => {
+        const extensionUri = createMockExtensionUri();
+        const fsOps = createMockFsOps();
+        const provider = new TrafficPanelProvider(extensionUri, fsOps);
+        const mockView = createMockWebviewView();
+
+        provider.resolveWebviewView(
+            mockView as unknown as vscode.WebviewView,
+            {} as vscode.WebviewViewResolveContext,
+            { isCancellationRequested: false, onCancellationRequested: sinon.stub() } as unknown as vscode.CancellationToken
+        );
+
+        const containers: ContainerStatusInfo[] = [
+            { id: 'a', name: 'c1', image: 'img1', protection: 'egress' },
+            { id: 'b', name: 'c2', image: 'img2', protection: 'secrets' },
+            { id: 'c', name: 'c3', image: 'img3', protection: 'both' },
+            { id: 'd', name: 'c4', image: 'img4', protection: 'none' },
+        ];
+        provider.postContainerStatus(containers);
+
+        const message = mockView.webview.postMessage.firstCall.args[0];
+        assert.strictEqual(message.data[0].protection, 'egress');
+        assert.strictEqual(message.data[1].protection, 'secrets');
+        assert.strictEqual(message.data[2].protection, 'both');
+        assert.strictEqual(message.data[3].protection, 'none');
     });
 });

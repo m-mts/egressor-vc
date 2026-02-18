@@ -8,8 +8,16 @@
     <title>Traffic Panel</title>
 </head>
 <body>
+    <div id="containers-section" class="containers-section hidden">
+        <div class="containers-header">Containers</div>
+        <div id="containers-list" class="containers-list"></div>
+    </div>
+
     <div class="toolbar">
         <input type="text" id="search-input" placeholder="Search host, path, secret..." />
+        <select id="container-filter">
+            <option value="all">All Containers</option>
+        </select>
         <select id="status-filter">
             <option value="all">All Status</option>
             <option value="allowed">Allowed</option>

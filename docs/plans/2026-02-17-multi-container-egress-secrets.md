@@ -92,14 +92,14 @@ Extend egressor from single-container to multi-container support. The extension 
 - Modify: `src/views/trafficPanel.css`
 - Modify: `src/views/trafficPanel.ts`
 
-- [ ] Add a "Containers" section above the event list showing discovered containers as cards/chips
-- [ ] Each container card shows: name, image, protection mode (egress/secrets/both/none)
-- [ ] Add a container filter dropdown to the toolbar so events can be filtered by container
-- [ ] Add container name column/badge to each event row
-- [ ] Color-code or icon-differentiate containers in the event list
-- [ ] Add postContainerStatus() message type from extension to webview for container discovery updates
-- [ ] Handle container appear/disappear events in the UI (add/remove container cards)
-- [ ] Write tests for the TrafficPanelProvider message handling with container data
+- [x] Add a "Containers" section above the event list showing discovered containers as cards/chips
+- [x] Each container card shows: name, image, protection mode (egress/secrets/both/none)
+- [x] Add a container filter dropdown to the toolbar so events can be filtered by container
+- [x] Add container name column/badge to each event row
+- [x] Color-code or icon-differentiate containers in the event list
+- [x] Add postContainerStatus() message type from extension to webview for container discovery updates
+- [x] Handle container appear/disappear events in the UI (add/remove container cards)
+- [x] Write tests for the TrafficPanelProvider message handling with container data
 
 ### Task 7: Verify acceptance criteria
 
