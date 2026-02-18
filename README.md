@@ -111,6 +111,71 @@ Explicit rules take priority over preset rules. Duplicate hosts are deduplicated
 
 For database types, `listenPort` is required (1-65535). Your application connects to `localhost:<listenPort>`, and the broker forwards to `target` with real credentials.
 
+### Multi-Container Mode
+
+When working with multi-container setups (e.g., docker-compose), Egressor can discover sibling containers via the Docker socket and apply per-container egress and secrets policies.
+
+Add a `containers` section to your `.egressor.yml`:
+
+```yaml
+version: "1.0"
+
+presets:
+  - node-fullstack
+
+rules:
+  - host: api.example.com
+    methods: [GET, POST]
+
+secrets:
+  - name: api_token
+    type: bearer_token
+    target: api.example.com
+
+containers:
+  - name: frontend
+    match:
+      image: "node:*"
+    egress: true               # Inherits top-level rules
+    secrets: false              # No secret injection
+
+  - name: backend
+    match:
+      name: "*-backend-*"
+    egress:                     # Custom rules for this container
+      - host: db.internal.com
+      - host: cache.internal.com
+    secrets: true               # Inherits top-level secrets
+
+  - name: worker
+    match:
+      label:
+        role: worker
+    egress: true
+    secrets:
+      - name: queue_token       # Custom secrets for this container
+        type: bearer_token
+        target: queue.internal.com
+```
+
+Container matching supports three criteria (all specified fields must match):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Container name (exact or glob pattern) |
+| `image` | string | Container image (exact or glob pattern) |
+| `label` | object | Container labels (all specified labels must match) |
+
+Inheritance rules:
+- `egress: true` - container uses the top-level `rules`
+- `egress: [...]` - container uses only the specified rules
+- `egress: false` or omitted - no egress protection for this container
+- Same pattern applies to `secrets`
+
+When the `containers` field is absent, Egressor operates in single-container mode (current devcontainer only).
+
+The Traffic Panel shows discovered containers as cards with their protection status, and events can be filtered by container.
+
 ## Commands
 
 | Command | Description |

@@ -111,6 +111,6 @@ Extend egressor from single-container to multi-container support. The extension 
 
 ### Task 8: Update documentation
 
-- [ ] Update README.md with multi-container configuration examples
-- [ ] Update CLAUDE.md if internal patterns changed
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update README.md with multi-container configuration examples
+- [x] Update CLAUDE.md if internal patterns changed
+- [x] Move this plan to `docs/plans/completed/`
