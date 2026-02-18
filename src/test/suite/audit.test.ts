@@ -101,6 +101,91 @@ suite('AuditTypes - serialization', () => {
         assert.strictEqual(serialized.target, 'api.example.com');
         assert.strictEqual(serialized.success, true);
     });
+
+    test('serializeTrafficEvent preserves container identity fields', () => {
+        const event = createTrafficEvent({
+            containerId: 'abc123def456',
+            containerName: 'my-web-app',
+        });
+        const serialized = serializeTrafficEvent(event);
+        assert.strictEqual(serialized.containerId, 'abc123def456');
+        assert.strictEqual(serialized.containerName, 'my-web-app');
+    });
+
+    test('serializeTrafficEvent leaves container fields undefined when not set', () => {
+        const event = createTrafficEvent();
+        const serialized = serializeTrafficEvent(event);
+        assert.strictEqual(serialized.containerId, undefined);
+        assert.strictEqual(serialized.containerName, undefined);
+    });
+
+    test('serializeSecretInjectionEvent preserves container identity fields', () => {
+        const event = createSecretInjectionEvent({
+            containerId: 'container-789',
+            containerName: 'api-service',
+        });
+        const serialized = serializeSecretInjectionEvent(event);
+        assert.strictEqual(serialized.containerId, 'container-789');
+        assert.strictEqual(serialized.containerName, 'api-service');
+    });
+
+    test('serializeSecretInjectionEvent leaves container fields undefined when not set', () => {
+        const event = createSecretInjectionEvent();
+        const serialized = serializeSecretInjectionEvent(event);
+        assert.strictEqual(serialized.containerId, undefined);
+        assert.strictEqual(serialized.containerName, undefined);
+    });
+
+    test('TrafficEvent accepts container identity fields', () => {
+        const event: TrafficEvent = {
+            timestamp: new Date(),
+            host: 'example.com',
+            status: 'allowed',
+            category: 'http',
+            raw: 'test',
+            containerId: 'ctr-001',
+            containerName: 'frontend',
+        };
+        assert.strictEqual(event.containerId, 'ctr-001');
+        assert.strictEqual(event.containerName, 'frontend');
+    });
+
+    test('SecretInjectionEvent accepts container identity fields', () => {
+        const event: SecretInjectionEvent = {
+            timestamp: new Date(),
+            secretName: 'db-pass',
+            secretType: 'postgresql',
+            target: 'db.local',
+            success: true,
+            raw: 'test',
+            containerId: 'ctr-002',
+            containerName: 'backend',
+        };
+        assert.strictEqual(event.containerId, 'ctr-002');
+        assert.strictEqual(event.containerName, 'backend');
+    });
+
+    test('AuditEntry accepts container identity fields', () => {
+        const entry: AuditEntry = {
+            id: 'audit-1',
+            timestamp: new Date().toISOString(),
+            type: 'traffic',
+            containerId: 'ctr-003',
+            containerName: 'worker',
+        };
+        assert.strictEqual(entry.containerId, 'ctr-003');
+        assert.strictEqual(entry.containerName, 'worker');
+    });
+
+    test('AuditEntry container fields are optional', () => {
+        const entry: AuditEntry = {
+            id: 'audit-2',
+            timestamp: new Date().toISOString(),
+            type: 'traffic',
+        };
+        assert.strictEqual(entry.containerId, undefined);
+        assert.strictEqual(entry.containerName, undefined);
+    });
 });
 
 // --- SessionLogger Tests ---
@@ -224,6 +309,48 @@ suite('SessionLogger', () => {
 
         const start = logger.getSessionStart();
         assert.ok(start instanceof Date);
+    });
+
+    test('logTrafficEvent propagates container identity to AuditEntry', async () => {
+        const fsOps = createMockFsOps();
+        const logger = new SessionLogger({ logDir: '/tmp/logs' }, fsOps, testIdGen);
+        await logger.start();
+
+        await logger.logTrafficEvent(createTrafficEvent({
+            containerId: 'ctr-abc',
+            containerName: 'web-frontend',
+        }));
+
+        const entries = logger.getEntries();
+        assert.strictEqual(entries[0].containerId, 'ctr-abc');
+        assert.strictEqual(entries[0].containerName, 'web-frontend');
+    });
+
+    test('logSecretInjectionEvent propagates container identity to AuditEntry', async () => {
+        const fsOps = createMockFsOps();
+        const logger = new SessionLogger({ logDir: '/tmp/logs' }, fsOps, testIdGen);
+        await logger.start();
+
+        await logger.logSecretInjectionEvent(createSecretInjectionEvent({
+            containerId: 'ctr-xyz',
+            containerName: 'api-backend',
+        }));
+
+        const entries = logger.getEntries();
+        assert.strictEqual(entries[0].containerId, 'ctr-xyz');
+        assert.strictEqual(entries[0].containerName, 'api-backend');
+    });
+
+    test('logger entries have no container fields when events lack them', async () => {
+        const fsOps = createMockFsOps();
+        const logger = new SessionLogger({ logDir: '/tmp/logs' }, fsOps, testIdGen);
+        await logger.start();
+
+        await logger.logTrafficEvent(createTrafficEvent());
+
+        const entries = logger.getEntries();
+        assert.strictEqual(entries[0].containerId, undefined);
+        assert.strictEqual(entries[0].containerName, undefined);
     });
 
     test('each entry gets a unique ID', async () => {

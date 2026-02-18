@@ -45,6 +45,10 @@ export interface SecretInjectionEvent {
     success: boolean;
     /** Raw log line from the broker */
     raw: string;
+    /** Container ID (set in multi-container mode) */
+    containerId?: string;
+    /** Container name (set in multi-container mode) */
+    containerName?: string;
 }
 
 /** Callback for secret injection event listeners */

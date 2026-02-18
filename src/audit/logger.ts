@@ -93,6 +93,8 @@ export class SessionLogger {
             timestamp: event.timestamp.toISOString(),
             type: 'traffic',
             trafficEvent: serializeTrafficEvent(event),
+            containerId: event.containerId,
+            containerName: event.containerName,
         };
         await this.writeEntry(entry);
     }
@@ -104,6 +106,8 @@ export class SessionLogger {
             timestamp: event.timestamp.toISOString(),
             type: 'secret_injection',
             secretInjectionEvent: serializeSecretInjectionEvent(event),
+            containerId: event.containerId,
+            containerName: event.containerName,
         };
         await this.writeEntry(entry);
     }

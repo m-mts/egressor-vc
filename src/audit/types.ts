@@ -20,6 +20,10 @@ export interface AuditEntry {
     trafficEvent?: SerializedTrafficEvent;
     /** The secret injection event data (when type is 'secret_injection') */
     secretInjectionEvent?: SerializedSecretInjectionEvent;
+    /** Container ID (set in multi-container mode) */
+    containerId?: string;
+    /** Container name (set in multi-container mode) */
+    containerName?: string;
 }
 
 /** Serializable version of TrafficEvent (Date -> string) */
@@ -34,6 +38,8 @@ export interface SerializedTrafficEvent {
     protocol?: string;
     durationMs?: number;
     raw: string;
+    containerId?: string;
+    containerName?: string;
 }
 
 /** Serializable version of SecretInjectionEvent (Date -> string) */
@@ -44,6 +50,8 @@ export interface SerializedSecretInjectionEvent {
     target: string;
     success: boolean;
     raw: string;
+    containerId?: string;
+    containerName?: string;
 }
 
 /** Session summary statistics */
@@ -101,6 +109,8 @@ export function serializeTrafficEvent(event: TrafficEvent): SerializedTrafficEve
         protocol: event.protocol,
         durationMs: event.durationMs,
         raw: event.raw,
+        containerId: event.containerId,
+        containerName: event.containerName,
     };
 }
 
@@ -113,5 +123,7 @@ export function serializeSecretInjectionEvent(event: SecretInjectionEvent): Seri
         target: event.target,
         success: event.success,
         raw: event.raw,
+        containerId: event.containerId,
+        containerName: event.containerName,
     };
 }

@@ -79,10 +79,10 @@ Extend egressor from single-container to multi-container support. The extension 
 - Modify: `src/secrets/types.ts`
 - Modify: `src/audit/types.ts`
 
-- [ ] Add optional containerName and containerId fields to TrafficEvent
-- [ ] Add optional containerName and containerId fields to SecretInjectionEvent
-- [ ] Update AuditEntry to include container identity
-- [ ] Write tests for event types with container fields
+- [x] Add optional containerName and containerId fields to TrafficEvent
+- [x] Add optional containerName and containerId fields to SecretInjectionEvent
+- [x] Update AuditEntry to include container identity
+- [x] Write tests for event types with container fields
 
 ### Task 6: Container management UI in traffic panel
 
