@@ -44,6 +44,7 @@ export class DockerDiscovery {
     private listeners: ContainerEventListener[] = [];
     private knownContainerIds = new Set<string>();
     private available: boolean | undefined;
+    private polling = false;
 
     constructor(options: DockerDiscoveryOptions = {}) {
         this.docker = options.docker ?? new Dockerode({
@@ -106,12 +107,18 @@ export class DockerDiscovery {
         const current = await this.listContainers();
         this.knownContainerIds = new Set(current.map(c => c.id));
 
-        this.pollTimer = setInterval(async () => {
-            try {
-                await this.poll();
-            } catch {
-                // Ignore poll errors - Docker may have become unavailable
+        this.pollTimer = setInterval(() => {
+            if (this.polling) {
+                return; // Skip if previous poll is still running
             }
+            this.polling = true;
+            this.poll()
+                .catch(() => {
+                    // Ignore poll errors - Docker may have become unavailable
+                })
+                .finally(() => {
+                    this.polling = false;
+                });
         }, this.pollIntervalMs);
     }
 

@@ -6,6 +6,11 @@ import { generateSecretlessYaml, generatePerContainerSecretlessYaml } from './se
 import { generateHttpjailRules, generatePerContainerHttpjailRules } from './httpjail-rules-generator';
 import { ResolvedConfig } from './types';
 
+/** Strip path separators and special directory names to prevent path traversal */
+function sanitizeContainerName(name: string): string {
+    return name.replace(/[/\\]/g, '_').replace(/^\.+$/, '_');
+}
+
 export interface ConfigWatcherCallbacks {
     onConfigChanged: (config: ResolvedConfig) => void;
     onConfigError: (errors: string[]) => void;
@@ -40,6 +45,7 @@ export class ConfigWatcher implements vscode.Disposable {
     private callbacks: ConfigWatcherCallbacks;
     private fs: FileSystem;
     private deleteTimer: ReturnType<typeof setTimeout> | undefined;
+    private reloadQueue: Promise<ResolvedConfig | undefined> = Promise.resolve(undefined);
 
     constructor(
         private workspaceRoot: string,
@@ -86,8 +92,14 @@ export class ConfigWatcher implements vscode.Disposable {
         );
     }
 
-    /** Load and process the config file */
+    /** Load and process the config file. Serialized to prevent overlapping reloads. */
     async reload(): Promise<ResolvedConfig | undefined> {
+        const task = this.reloadQueue.then(() => this.doReload());
+        this.reloadQueue = task.catch(() => undefined);
+        return task;
+    }
+
+    private async doReload(): Promise<ResolvedConfig | undefined> {
         const configPath = path.join(this.workspaceRoot, '.egressor.yml');
 
         let content: string;
@@ -133,8 +145,9 @@ export class ConfigWatcher implements vscode.Disposable {
         // Write per-container httpjail rule files
         const containerRules = generatePerContainerHttpjailRules(config);
         for (const [containerName, content] of containerRules) {
+            const safeName = sanitizeContainerName(containerName);
             this.fs.writeFileSync(
-                path.join(this.outputDir, `httpjail-rules-${containerName}.js`),
+                path.join(this.outputDir, `httpjail-rules-${safeName}.js`),
                 content,
                 { mode: 0o600 }
             );
@@ -143,8 +156,9 @@ export class ConfigWatcher implements vscode.Disposable {
         // Write per-container secretless.yml files
         const containerSecrets = generatePerContainerSecretlessYaml(config, this.secretsDir);
         for (const [containerName, content] of containerSecrets) {
+            const safeName = sanitizeContainerName(containerName);
             this.fs.writeFileSync(
-                path.join(this.outputDir, `secretless-${containerName}.yml`),
+                path.join(this.outputDir, `secretless-${safeName}.yml`),
                 content,
                 { mode: 0o600 }
             );

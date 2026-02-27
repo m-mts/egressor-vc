@@ -16,8 +16,40 @@ import { StatusBarManager } from '../views/statusBar';
 import { DiagnosticsManager } from '../views/diagnostics';
 import { SessionLogger } from '../audit/logger';
 import { ContainerContext, detectContainer, VscodeEnv } from './detector';
+import { ContainerOrchestrator } from './orchestrator';
+import { DockerDiscovery } from './docker-discovery';
 import { TrafficEvent } from '../jail/types';
 import { SecretInjectionEvent } from '../secrets/types';
+import { SecretDeclaration } from '../config/types';
+
+/**
+ * Collect all unique secrets across top-level config and per-container configs.
+ * Deduplicates by secret name, giving priority to the first occurrence.
+ */
+function collectAllSecrets(config: ResolvedConfig): SecretDeclaration[] {
+    const seen = new Set<string>();
+    const allSecrets: SecretDeclaration[] = [];
+
+    for (const s of config.secrets) {
+        if (!seen.has(s.name)) {
+            seen.add(s.name);
+            allSecrets.push(s);
+        }
+    }
+
+    if (config.containers) {
+        for (const container of config.containers) {
+            for (const s of container.secrets) {
+                if (!seen.has(s.name)) {
+                    seen.add(s.name);
+                    allSecrets.push(s);
+                }
+            }
+        }
+    }
+
+    return allSecrets;
+}
 
 /** Options for creating the EgressorSetup orchestrator */
 export interface SetupOptions {
@@ -71,6 +103,9 @@ export class EgressorSetup implements vscode.Disposable {
     private currentConfig: ResolvedConfig | undefined;
     private suppressConfigCallback = false;
     private disposed = false;
+    private containerOrchestrator: ContainerOrchestrator | undefined;
+    private orchestratorDisposables: vscode.Disposable[] = [];
+    private configChangeQueue: Promise<void> = Promise.resolve();
 
     constructor(options: SetupOptions) {
         this.context = options.context;
@@ -222,9 +257,10 @@ export class EgressorSetup implements vscode.Disposable {
                 return false;
             }
 
-            // 3. Check for and prompt missing secrets
-            if (config.secrets.length > 0) {
-                await promptForMissingSecrets(config.secrets, this.credentialProvider);
+            // 3. Check for and prompt missing secrets (top-level + per-container)
+            const allSecrets = collectAllSecrets(config);
+            if (allSecrets.length > 0) {
+                await promptForMissingSecrets(allSecrets, this.credentialProvider);
 
                 // Check if stop() was called during secret prompting
                 if (this.state !== 'starting') {
@@ -234,7 +270,7 @@ export class EgressorSetup implements vscode.Disposable {
                 }
 
                 // Write secret files for Secretless Broker
-                const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
+                const secretFiles = await this.credentialProvider.generateSecretFiles(allSecrets);
                 this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
             }
 
@@ -283,6 +319,19 @@ export class EgressorSetup implements vscode.Disposable {
                 }
             }
 
+            // 8. Start multi-container orchestration if containers are configured
+            if (config.containers && config.containers.length > 0) {
+                const discovery = new DockerDiscovery();
+                this.containerOrchestrator = new ContainerOrchestrator({
+                    outputChannel: this.outputChannel,
+                    discovery,
+                    outputDir,
+                    secretsDir,
+                });
+                this.wireOrchestratorEvents(this.containerOrchestrator);
+                await this.containerOrchestrator.start(config);
+            }
+
             this.state = 'running';
             this.outputChannel.appendLine('Egressor: started successfully');
             vscode.window.showInformationMessage('Egressor started - traffic monitoring active');
@@ -324,6 +373,14 @@ export class EgressorSetup implements vscode.Disposable {
 
         await Promise.all(stopPromises);
 
+        // Stop multi-container orchestrator if active
+        if (this.containerOrchestrator) {
+            await this.containerOrchestrator.stop().catch(err => {
+                this.outputChannel.appendLine(`Egressor: error stopping container orchestrator: ${err}`);
+            });
+            this.disposeOrchestrator();
+        }
+
         // Clean up secret files from disk
         this.cleanupSecretFiles();
 
@@ -347,8 +404,15 @@ export class EgressorSetup implements vscode.Disposable {
 
     /**
      * Handle config changes: reload httpjail rules, regenerate secretless config.
+     * Serialized: concurrent calls are queued to prevent overlapping mutations.
      */
     private async onConfigChanged(config: ResolvedConfig): Promise<void> {
+        const task = this.configChangeQueue.then(() => this.doConfigChanged(config));
+        this.configChangeQueue = task.catch(() => {});
+        return task;
+    }
+
+    private async doConfigChanged(config: ResolvedConfig): Promise<void> {
         if (this.state !== 'running') {
             return;
         }
@@ -359,31 +423,70 @@ export class EgressorSetup implements vscode.Disposable {
         const rulesFilePath = path.join(outputDir, 'httpjail-rules.js');
 
         if (this.httpjailManager.getState() === 'running') {
-            await this.httpjailManager.reloadRules(rulesFilePath);
+            const reloaded = await this.httpjailManager.reloadRules(rulesFilePath);
+            if (!reloaded) {
+                this.outputChannel.appendLine('Egressor: failed to reload httpjail rules after config change');
+                vscode.window.showWarningMessage('Egressor: Failed to reload traffic rules. Rules may be stale.');
+            }
         }
 
-        // If secrets changed, prompt for new ones and update broker
+        // Prompt for any newly added secrets (top-level + per-container)
+        const allSecrets = collectAllSecrets(config);
+        if (allSecrets.length > 0) {
+            const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
+            await promptForMissingSecrets(allSecrets, this.credentialProvider);
+
+            // Regenerate secret files for all secrets (top-level + per-container)
+            const secretFiles = await this.credentialProvider.generateSecretFiles(allSecrets);
+            this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
+        }
+
+        // Manage top-level broker based on top-level secrets only
+        // (per-container secrets are handled by the ContainerOrchestrator)
         if (config.secrets.length > 0) {
             const secretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
-
-            // Prompt for any newly added secrets
-            await promptForMissingSecrets(config.secrets, this.credentialProvider);
-
-            // Regenerate secret files
-            const secretFiles = await this.credentialProvider.generateSecretFiles(config.secrets);
-            this.brokerManager.writeSecretFiles(secretsDir, secretFiles);
-
             const configFilePath = path.join(outputDir, 'secretless.yml');
+            let brokerOk: boolean;
             if (this.brokerManager.getState() === 'running') {
-                await this.brokerManager.restart({ configFilePath, secretsDir });
+                brokerOk = await this.brokerManager.restart({ configFilePath, secretsDir });
             } else {
-                await this.brokerManager.start({ configFilePath, secretsDir });
+                brokerOk = await this.brokerManager.start({ configFilePath, secretsDir });
+            }
+            if (!brokerOk) {
+                this.outputChannel.appendLine('Egressor: failed to start/restart broker after config change');
+                vscode.window.showWarningMessage('Egressor: Secretless Broker failed to start after config change.');
             }
         } else {
-            // Secrets removed from config - stop broker if running
+            // Top-level secrets removed from config - stop broker if running
             if (this.brokerManager.getState() === 'running') {
                 await this.brokerManager.stop();
             }
+        }
+
+        // Update multi-container orchestrator if active, or create/destroy as needed
+        if (this.containerOrchestrator) {
+            if (config.containers && config.containers.length > 0) {
+                await this.containerOrchestrator.updateConfig(config);
+            } else {
+                // Containers removed from config - tear down orchestrator
+                this.outputChannel.appendLine('Egressor: containers removed from config, stopping orchestrator');
+                await this.containerOrchestrator.stop().catch(err => {
+                    this.outputChannel.appendLine(`Egressor: error stopping container orchestrator: ${err}`);
+                });
+                this.disposeOrchestrator();
+            }
+        } else if (config.containers && config.containers.length > 0) {
+            const outputDir = path.join(this.context.globalStorageUri.fsPath, 'generated');
+            const containerSecretsDir = path.join(this.context.globalStorageUri.fsPath, 'secrets');
+            const discovery = new DockerDiscovery();
+            this.containerOrchestrator = new ContainerOrchestrator({
+                outputChannel: this.outputChannel,
+                discovery,
+                outputDir,
+                secretsDir: containerSecretsDir,
+            });
+            this.wireOrchestratorEvents(this.containerOrchestrator);
+            await this.containerOrchestrator.start(config);
         }
     }
 
@@ -416,6 +519,44 @@ export class EgressorSetup implements vscode.Disposable {
         this.disposables.push(secretSub);
     }
 
+    /**
+     * Wire per-container traffic and secret events from the orchestrator
+     * to the same consumers as top-level events.
+     */
+    private wireOrchestratorEvents(orchestrator: ContainerOrchestrator): void {
+        const trafficSub = orchestrator.onTrafficEvent((event: TrafficEvent, containerId: string, containerName: string) => {
+            const enriched = { ...event, containerId, containerName };
+            this.trafficPanel.postTrafficEvent(enriched);
+            this.statusBar.onTrafficEvent(enriched);
+            this.diagnostics.onTrafficEvent(enriched);
+            this.sessionLogger.logTrafficEvent(enriched).catch(err => {
+                this.outputChannel.appendLine(`Egressor: audit log error: ${err}`);
+            });
+        });
+        this.orchestratorDisposables.push(trafficSub);
+
+        const secretSub = orchestrator.onSecretEvent((event: SecretInjectionEvent, containerId: string, containerName: string) => {
+            const enriched = { ...event, containerId, containerName };
+            this.trafficPanel.postSecretEvent(enriched);
+            this.sessionLogger.logSecretInjectionEvent(enriched).catch(err => {
+                this.outputChannel.appendLine(`Egressor: audit log error: ${err}`);
+            });
+        });
+        this.orchestratorDisposables.push(secretSub);
+    }
+
+    /** Dispose orchestrator and its event subscriptions */
+    private disposeOrchestrator(): void {
+        for (const d of this.orchestratorDisposables) {
+            d.dispose();
+        }
+        this.orchestratorDisposables.length = 0;
+        if (this.containerOrchestrator) {
+            this.containerOrchestrator.dispose();
+            this.containerOrchestrator = undefined;
+        }
+    }
+
     /** Remove secret files written to disk */
     private cleanupSecretFiles(): void {
         try {
@@ -437,6 +578,10 @@ export class EgressorSetup implements vscode.Disposable {
 
     /** Clean up resources allocated during a partial/failed start */
     private async cleanupPartialStart(): Promise<void> {
+        if (this.containerOrchestrator) {
+            await this.containerOrchestrator.stop().catch(() => {});
+            this.disposeOrchestrator();
+        }
         this.cleanupSecretFiles();
         this.configWatcher?.dispose();
         this.configWatcher = undefined;
@@ -453,6 +598,9 @@ export class EgressorSetup implements vscode.Disposable {
 
         // Clean up secret files
         this.cleanupSecretFiles();
+
+        // Stop multi-container orchestrator if active
+        this.disposeOrchestrator();
 
         // Stop everything synchronously (best-effort)
         this.httpjailManager.dispose();

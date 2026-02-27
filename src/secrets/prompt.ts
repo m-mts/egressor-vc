@@ -36,6 +36,7 @@ export async function promptForSecret(
                 prompt: `Enter bearer token for "${declaration.name}"${desc}`,
                 password: true,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Value cannot be empty' : undefined,
             });
             if (value === undefined) {
                 return undefined;
@@ -49,6 +50,7 @@ export async function promptForSecret(
                 prompt: `Enter value for header "${headerName}" (secret: "${declaration.name}")${desc}`,
                 password: true,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Value cannot be empty' : undefined,
             });
             if (value === undefined) {
                 return undefined;
@@ -60,6 +62,7 @@ export async function promptForSecret(
             const username = await windowApi.showInputBox({
                 prompt: `Enter username for "${declaration.name}"${desc}`,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Username cannot be empty' : undefined,
             });
             if (username === undefined) {
                 return undefined;
@@ -69,6 +72,7 @@ export async function promptForSecret(
                 prompt: `Enter password for "${declaration.name}"${desc}`,
                 password: true,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Password cannot be empty' : undefined,
             });
             if (password === undefined) {
                 return undefined;
@@ -85,6 +89,7 @@ export async function promptForSecret(
                 prompt: `Enter ${dbType} host for "${declaration.name}"${desc}`,
                 value: declaration.target.split(':')[0],
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Host cannot be empty' : undefined,
             });
             if (host === undefined) {
                 return undefined;
@@ -97,6 +102,7 @@ export async function promptForSecret(
                 prompt: `Enter ${dbType} port for "${declaration.name}"`,
                 value: String(targetPort),
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Port cannot be empty' : undefined,
             });
             if (port === undefined) {
                 return undefined;
@@ -105,6 +111,7 @@ export async function promptForSecret(
             const username = await windowApi.showInputBox({
                 prompt: `Enter ${dbType} username for "${declaration.name}"`,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Username cannot be empty' : undefined,
             });
             if (username === undefined) {
                 return undefined;
@@ -114,6 +121,7 @@ export async function promptForSecret(
                 prompt: `Enter ${dbType} password for "${declaration.name}"`,
                 password: true,
                 ignoreFocusOut: true,
+                validateInput: v => v.trim() === '' ? 'Password cannot be empty' : undefined,
             });
             if (password === undefined) {
                 return undefined;
@@ -121,10 +129,6 @@ export async function promptForSecret(
 
             return { host, port, username, password };
         }
-
-        case 'ssh':
-            // SSH secrets not handled via Secretless Broker
-            return { value: '' };
 
         default:
             return undefined;

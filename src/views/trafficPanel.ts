@@ -144,7 +144,11 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
                 );
                 if (action === 'View Setup Guide') {
                     const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'httpjail-rules.md');
-                    await execCmd('markdown.showPreview', docUri);
+                    try {
+                        await execCmd('markdown.showPreview', docUri);
+                    } catch {
+                        await execCmd('vscode.open', vscode.Uri.parse('https://github.com/anthropics/egressor#httpjail-setup'));
+                    }
                 }
             } else if (deps.httpjailManager && deps.httpjailManager.getState() !== 'running') {
                 await showInfo(
@@ -166,7 +170,11 @@ export class TrafficPanelProvider implements vscode.WebviewViewProvider {
                 );
                 if (action === 'View Setup Guide') {
                     const docUri = vscode.Uri.joinPath(this.extensionUri, 'docs', 'secretless-broker.md');
-                    await execCmd('markdown.showPreview', docUri);
+                    try {
+                        await execCmd('markdown.showPreview', docUri);
+                    } catch {
+                        await execCmd('vscode.open', vscode.Uri.parse('https://github.com/anthropics/egressor#secretless-broker-setup'));
+                    }
                 }
             } else if (hasSecrets && deps.brokerManager && deps.brokerManager.getState() !== 'running') {
                 await showInfo(

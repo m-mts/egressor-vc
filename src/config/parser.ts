@@ -190,6 +190,8 @@ function validateContainerConfig(container: unknown, index: number): ConfigValid
 
     if (typeof c.name !== 'string' || c.name.trim() === '') {
         errors.push({ field: `${prefix}.name`, message: 'name is required and must be a non-empty string' });
+    } else if (/[/\\]/.test(c.name) || /^\.+$/.test(c.name)) {
+        errors.push({ field: `${prefix}.name`, message: 'name must not contain path separators or consist entirely of dots' });
     }
 
     errors.push(...validateContainerMatch(c.match, prefix));
@@ -287,6 +289,48 @@ export function parseConfig(yamlContent: string): ConfigParseResult {
         } else {
             for (let i = 0; i < doc.containers.length; i++) {
                 errors.push(...validateContainerConfig(doc.containers[i], i));
+            }
+        }
+    }
+
+    // Secret name conflict detection: if two secrets share the same name but
+    // differ in type, deduplication in collectAllSecrets() (first-wins) would
+    // conflict with secretless-generator (last-wins object overwrite).
+    // Detect duplicates within top-level secrets AND across all containers.
+    if (errors.length === 0) {
+        const secretTypes = new Map<string, { type: string; field: string }>();
+        if (Array.isArray(doc.secrets)) {
+            for (let si = 0; si < (doc.secrets as Array<Record<string, unknown>>).length; si++) {
+                const s = (doc.secrets as Array<Record<string, unknown>>)[si];
+                if (typeof s.name === 'string' && typeof s.type === 'string') {
+                    const existing = secretTypes.get(s.name);
+                    if (existing && existing.type !== s.type) {
+                        errors.push({
+                            field: `secrets[${si}]`,
+                            message: `Secret "${s.name}" declared with type "${s.type}" conflicts with earlier declaration of type "${existing.type}" in ${existing.field}`,
+                        });
+                    } else if (!existing) {
+                        secretTypes.set(s.name, { type: s.type, field: `secrets[${si}]` });
+                    }
+                }
+            }
+        }
+        for (let ci = 0; Array.isArray(doc.containers) && ci < doc.containers.length; ci++) {
+            const c = doc.containers[ci] as Record<string, unknown>;
+            if (Array.isArray(c.secrets)) {
+                for (const s of c.secrets as Array<Record<string, unknown>>) {
+                    if (typeof s.name === 'string' && typeof s.type === 'string') {
+                        const existing = secretTypes.get(s.name);
+                        if (existing && existing.type !== s.type) {
+                            errors.push({
+                                field: `containers[${ci}].secrets`,
+                                message: `Secret "${s.name}" declared with type "${s.type}" conflicts with earlier declaration of type "${existing.type}" in ${existing.field}`,
+                            });
+                        } else if (!existing) {
+                            secretTypes.set(s.name, { type: s.type, field: `containers[${ci}].secrets` });
+                        }
+                    }
+                }
             }
         }
     }

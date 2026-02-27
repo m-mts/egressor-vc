@@ -119,11 +119,29 @@ export class CredentialProvider implements vscode.Disposable {
         const missing: SecretDeclaration[] = [];
         for (const decl of declarations) {
             const fields = await this.getSecret(decl.name);
-            if (!fields) {
+            if (!fields || !this.hasRequiredFields(decl, fields)) {
                 missing.push(decl);
             }
         }
         return missing;
+    }
+
+    /**
+     * Check that stored fields contain the required non-empty values for a secret type.
+     */
+    private hasRequiredFields(decl: SecretDeclaration, fields: SecretFields): boolean {
+        switch (decl.type) {
+            case 'bearer_token':
+            case 'header':
+                return !!fields.value;
+            case 'basic_auth':
+                return !!fields.username && !!fields.password;
+            case 'postgresql':
+            case 'mysql':
+                return !!fields.host && !!fields.port && !!fields.username && !!fields.password;
+            default:
+                return true;
+        }
     }
 
     /**
@@ -175,9 +193,6 @@ export class CredentialProvider implements vscode.Disposable {
                     if (fields.password) {
                         files[`${decl.name}_password`] = fields.password;
                     }
-                    break;
-                case 'ssh':
-                    // SSH not handled by Secretless Broker
                     break;
             }
         }

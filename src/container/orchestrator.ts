@@ -12,6 +12,11 @@ import { SecretlessBrokerManager } from '../secrets/broker-manager';
 import { TrafficEvent } from '../jail/types';
 import { SecretInjectionEvent } from '../secrets/types';
 
+/** Strip path separators and special directory names to prevent path traversal */
+function sanitizeContainerName(name: string): string {
+    return name.replace(/[/\\]/g, '_').replace(/^\.+$/, '_');
+}
+
 /** Per-container enforcement state */
 export interface ContainerEnforcement {
     containerId: string;
@@ -60,6 +65,9 @@ export class ContainerOrchestrator implements vscode.Disposable {
     private secretListeners: ContainerSecretListener[] = [];
     private watching = false;
     private disposed = false;
+    private updateQueue: Promise<void> = Promise.resolve();
+    private pendingEvents: ContainerEvent[] = [];
+    private updatingConfig = false;
 
     constructor(options: {
         outputChannel: vscode.OutputChannel;
@@ -157,29 +165,113 @@ export class ContainerOrchestrator implements vscode.Disposable {
 
     /**
      * Update config and re-evaluate container matches.
-     * Tears down enforcements that no longer match, sets up new ones.
+     * Uses fail-closed approach: for each container, old enforcement is only
+     * torn down after its replacement is successfully set up. If re-setup
+     * fails, the previous enforcement is kept. Container events during the
+     * update are queued and replayed after completion.
+     *
+     * Serialized: concurrent calls are queued and run sequentially to prevent
+     * overlapping mutations of enforcement state.
      */
     async updateConfig(config: ResolvedConfig): Promise<void> {
+        const task = this.updateQueue.then(() => this.doUpdateConfig(config));
+        this.updateQueue = task.catch(() => {});
+        return task;
+    }
+
+    private async doUpdateConfig(config: ResolvedConfig): Promise<void> {
         this.currentConfig = config;
+        this.updatingConfig = true;
 
-        // Tear down enforcements whose config no longer matches
-        for (const [containerId, enforcement] of [...this.enforcements]) {
-            const stillMatches = config.containers.some(cc =>
-                cc.name === enforcement.configName
-            );
-            if (!stillMatches) {
-                await this.teardownEnforcement(containerId, enforcement);
-                this.enforcements.delete(containerId);
-            }
-        }
-
-        // Re-check containers for new matches
-        if (await this.discovery.isAvailable()) {
-            const containers = await this.discovery.listContainers();
-            for (const container of containers) {
-                if (!this.enforcements.has(container.id)) {
-                    await this.setupContainerIfMatched(container, config);
+        try {
+            // Discover containers first, before tearing anything down.
+            // If Docker is unavailable or listing fails, keep existing enforcements
+            // to avoid a fail-open window.
+            let containers: import('./docker-discovery').DiscoveredContainer[] = [];
+            if (await this.discovery.isAvailable()) {
+                try {
+                    containers = await this.discovery.listContainers();
+                } catch (err) {
+                    this.outputChannel.appendLine(
+                        `ContainerOrchestrator: failed to list containers during config update, keeping existing enforcements: ${err}`
+                    );
+                    return;
                 }
+            } else {
+                this.outputChannel.appendLine(
+                    'ContainerOrchestrator: Docker not available during config update, keeping existing enforcements'
+                );
+                return;
+            }
+
+            // Docker listing succeeded - build the new set of enforcements.
+            // Use a swap approach: only tear down old enforcement after its
+            // replacement is successfully set up, to avoid fail-open windows.
+            const previousEnforcements = new Map(this.enforcements);
+            const newContainerIds = new Set<string>();
+
+            for (const container of containers) {
+                const matchedConfig = this.findMatchingConfig(container, config.containers);
+                if (!matchedConfig) {
+                    continue;
+                }
+
+                newContainerIds.add(container.id);
+                const oldEnforcement = previousEnforcements.get(container.id);
+
+                // Remove old entry so setupEnforcement can write the new one
+                this.enforcements.delete(container.id);
+
+                this.outputChannel.appendLine(
+                    `ContainerOrchestrator: matched container "${container.name}" (${container.id.substring(0, 12)}) to config "${matchedConfig.name}"`
+                );
+
+                try {
+                    await this.setupEnforcement(container, matchedConfig);
+                } catch (err) {
+                    // setupEnforcement threw - restore old enforcement so it
+                    // remains reachable for later stop()/dispose() calls.
+                    this.outputChannel.appendLine(
+                        `ContainerOrchestrator: setupEnforcement threw for "${container.name}": ${err}`
+                    );
+                    if (oldEnforcement) {
+                        this.enforcements.set(container.id, oldEnforcement);
+                    }
+                    continue;
+                }
+
+                if (this.enforcements.has(container.id)) {
+                    // New setup succeeded - tear down old enforcement
+                    if (oldEnforcement) {
+                        await this.teardownEnforcement(container.id, oldEnforcement);
+                    }
+                } else if (oldEnforcement) {
+                    // New setup failed (non-throw) - restore old enforcement to stay fail-closed
+                    this.outputChannel.appendLine(
+                        `ContainerOrchestrator: re-setup failed for "${container.name}", keeping previous enforcement`
+                    );
+                    this.enforcements.set(container.id, oldEnforcement);
+                }
+            }
+
+            // Tear down enforcements for containers no longer discovered or no longer matching
+            for (const [containerId, enforcement] of previousEnforcements) {
+                if (!newContainerIds.has(containerId)) {
+                    await this.teardownEnforcement(containerId, enforcement);
+                    this.enforcements.delete(containerId);
+                }
+            }
+        } finally {
+            this.updatingConfig = false;
+
+            // Replay any container events that arrived during the update
+            const queued = this.pendingEvents.splice(0);
+            for (const event of queued) {
+                await this.handleContainerEvent(event).catch(err => {
+                    this.outputChannel.appendLine(
+                        `ContainerOrchestrator: error replaying queued container event: ${err}`
+                    );
+                });
             }
         }
     }
@@ -294,12 +386,21 @@ export class ContainerOrchestrator implements vscode.Disposable {
             enforcement.disposables.push(sub);
 
             // Start httpjail with container-specific rules file
-            const rulesFilePath = path.join(this.outputDir, `httpjail-rules-${config.name}.js`);
-            await manager.start({
+            const safeName = sanitizeContainerName(config.name);
+            const rulesFilePath = path.join(this.outputDir, `httpjail-rules-${safeName}.js`);
+            const httpjailStarted = await manager.start({
                 rulesFilePath,
                 containerId: container.id,
                 strongMode: true,
             });
+
+            if (!httpjailStarted) {
+                this.outputChannel.appendLine(
+                    `ContainerOrchestrator: failed to start httpjail for container "${container.name}"`
+                );
+                for (const d of enforcement.disposables) { d.dispose(); }
+                return;
+            }
         }
 
         // Set up broker if container has secrets
@@ -316,11 +417,18 @@ export class ContainerOrchestrator implements vscode.Disposable {
             enforcement.disposables.push(sub);
 
             // Start broker with container-specific config
-            const configFilePath = path.join(this.outputDir, `secretless-${config.name}.yml`);
-            await manager.start({
+            const configFilePath = path.join(this.outputDir, `secretless-${sanitizeContainerName(config.name)}.yml`);
+            const brokerStarted = await manager.start({
                 configFilePath,
                 secretsDir: this.secretsDir,
             });
+
+            if (!brokerStarted) {
+                this.outputChannel.appendLine(
+                    `ContainerOrchestrator: failed to start broker for container "${container.name}" (continuing without secret injection)`
+                );
+                // Broker failure is non-fatal - httpjail enforcement still applies
+            }
         }
 
         this.enforcements.set(container.id, enforcement);
@@ -331,6 +439,16 @@ export class ContainerOrchestrator implements vscode.Disposable {
      */
     private async handleContainerEvent(event: ContainerEvent): Promise<void> {
         if (!this.currentConfig) {
+            return;
+        }
+
+        // Queue container events while a config update is in progress to avoid
+        // racing with updateConfig(). Events are replayed after the update completes.
+        if (this.updatingConfig) {
+            this.outputChannel.appendLine(
+                `ContainerOrchestrator: queuing container event during config update (type=${event.type})`
+            );
+            this.pendingEvents.push(event);
             return;
         }
 

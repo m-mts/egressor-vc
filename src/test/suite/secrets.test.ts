@@ -1020,7 +1020,7 @@ suite('Secret Prompting', () => {
         assert.strictEqual(fields, undefined);
     });
 
-    test('promptForSecret returns empty fields for ssh', async () => {
+    test('promptForSecret returns undefined for unsupported ssh type', async () => {
         const windowApi = createMockWindowApi();
 
         const decl: SecretDeclaration = {
@@ -1030,8 +1030,8 @@ suite('Secret Prompting', () => {
         };
 
         const fields = await promptForSecret(decl, windowApi);
-        assert.ok(fields);
-        assert.strictEqual(fields!.value, '');
+        assert.strictEqual(fields, undefined);
+        assert.ok(windowApi.showInputBoxStub.notCalled, 'Should not prompt for unsupported type');
     });
 
     test('promptForMissingSecrets prompts when secrets are missing', async () => {
